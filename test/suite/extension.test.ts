@@ -67,7 +67,9 @@ suite('Phase 1 — Extension Skeleton', () => {
   test('signOut command should handle unauthenticated state gracefully', async () => {
     // Should not throw when called while not authenticated
     await assert.doesNotReject(
-      () => vscode.commands.executeCommand('classroomSubmit.signOut'),
+      async () => {
+        await vscode.commands.executeCommand('classroomSubmit.signOut');
+      },
       'signOut threw an error when called unauthenticated',
     );
   });
@@ -87,5 +89,3 @@ suite('Phase 1 — Extension Skeleton', () => {
   });
 });
 
-// Suppress unused import warning — EXTENSION_ID used as documentation
-void EXTENSION_ID;

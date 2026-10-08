@@ -1,5 +1,3 @@
-import * as vscode from 'vscode';
-
 /**
  * Centralized logger for the extension.
  *
@@ -8,14 +6,31 @@ import * as vscode from 'vscode';
  *
  * Uses VS Code's OutputChannel for structured, user-inspectable logs.
  */
+interface OutputChannelLike {
+  appendLine(value: string): void;
+  show(): void;
+  dispose(): void;
+}
+
 export class Logger {
   private static instance: Logger;
-  private readonly outputChannel: vscode.OutputChannel;
+  private readonly outputChannel: OutputChannelLike;
 
   private constructor() {
-    this.outputChannel = vscode.window.createOutputChannel('Classroom Submit', {
-      log: true,
-    });
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const vscode = require('vscode') as typeof import('vscode');
+      this.outputChannel = vscode.window.createOutputChannel('Classroom Submit', {
+        log: true,
+      });
+    } catch {
+      // Fallback for standalone unit test environments where VS Code host is not present
+      this.outputChannel = {
+        appendLine: () => {},
+        show: () => {},
+        dispose: () => {},
+      };
+    }
   }
 
   public static getInstance(): Logger {
@@ -62,3 +77,4 @@ export class Logger {
     this.outputChannel.dispose();
   }
 }
+

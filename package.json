@@ -7,9 +7,20 @@
   "engines": {
     "vscode": "^1.85.0"
   },
-  "categories": ["Other", "Education"],
-  "keywords": ["google classroom", "classroom", "assignment", "submit", "education"],
-  "activationEvents": ["onStartupFinished"],
+  "categories": [
+    "Other",
+    "Education"
+  ],
+  "keywords": [
+    "google classroom",
+    "classroom",
+    "assignment",
+    "submit",
+    "education"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
@@ -49,17 +60,36 @@
       "properties": {
         "classroomSubmit.excludedDirectories": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "default": [
-            ".git", "node_modules", ".venv", "venv", "__pycache__",
-            "dist", "build", "target", "coverage", ".next", ".cache", "out"
+            ".git",
+            "node_modules",
+            ".venv",
+            "venv",
+            "__pycache__",
+            "dist",
+            "build",
+            "target",
+            "coverage",
+            ".next",
+            ".cache",
+            "out"
           ],
           "description": "Directory names to exclude from submission."
         },
         "classroomSubmit.excludedFiles": {
           "type": "array",
-          "items": { "type": "string" },
-          "default": [".env", "*.vsix", "*.tsbuildinfo", "*.log"],
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            ".env",
+            "*.vsix",
+            "*.tsbuildinfo",
+            "*.log"
+          ],
           "description": "File glob patterns to exclude from submission."
         },
         "classroomSubmit.maxFileSizeMb": {
@@ -103,11 +133,14 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint src --ext ts",
     "pretest": "tsc -p tsconfig.test.json --noEmit && node esbuild.config.js && tsc -p tsconfig.test.json",
-    "test": "node ./out-test/test/runTests.js",
+    "test": "mocha --ui tdd -r ./test/mockVscode.cjs 'out-test/test/suite/**/*.test.js'",
+    "test:electron": "node ./out-test/test/runTests.js",
     "package": "vsce package"
   },
   "devDependencies": {
     "@types/chai": "^5.0.1",
+    "@types/glob": "^8.1.0",
+    "@types/minimatch": "^5.1.2",
     "@types/mocha": "^10.0.10",
     "@types/node": "^20.0.0",
     "@types/sinon": "^17.0.4",
@@ -118,9 +151,13 @@
     "chai": "^5.1.2",
     "esbuild": "^0.24.0",
     "eslint": "^8.0.0",
+    "glob": "^13.0.6",
     "mocha": "^10.8.2",
     "prettier": "^3.0.0",
     "sinon": "^19.0.2",
     "typescript": "~5.7.0"
+  },
+  "dependencies": {
+    "minimatch": "^10.2.6"
   }
 }

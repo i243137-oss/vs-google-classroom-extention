@@ -13,7 +13,7 @@
 |-------|-------|--------|
 | 0 | Project Discovery & Design | ✅ Complete |
 | 1 | VS Code Extension Skeleton | ✅ Complete |
-| 2 | Workspace & File Discovery | ⏳ Not Started |
+| 2 | Workspace & File Discovery | ✅ Complete |
 | 3 | File Selection UI | ⏳ Not Started |
 | 4 | Google OAuth Authentication | ⏳ Not Started |
 | 5 | Google Classroom — Courses | ⏳ Not Started |
@@ -128,16 +128,51 @@ WorkspaceService → FileScanner → FileFilter
 
 ---
 
+## ✅ Phase 2 — Workspace and Project File Discovery
+
+**Status:** Complete  
+**Completed:** 2026-10-08
+
+### Summary of Implementation:
+- **`FileScanner` (`src/workspace/FileScanner.ts`):**
+  - Uses `fs.opendir` for memory-efficient async directory traversal.
+  - Skips excluded directories at the top level before descending into subtrees.
+  - Emits top-level directories as selectable units (`isDirectory: true`) and nested contents as files.
+  - Safe symlink handling (does not follow by default to avoid loops) and maximum directory depth guard (depth 50).
+  - Graceful per-entry error handling (permission denied logged without halting scan).
+- **`FileFilter` (`src/workspace/FileFilter.ts`):**
+  - Glob matching via `minimatch` for patterns like `.env`, `*.log`, `*.vsix`, `*.tsbuildinfo`.
+  - Max file size filtering based on configuration (`maxFileSizeMb`).
+  - `partition()` method separating files into included and excluded buckets for UI display.
+- **`WorkspaceService` (`src/workspace/WorkspaceService.ts`):**
+  - Single-root and multi-root workspace detection (QuickPick prompt for multi-root).
+  - Throws typed `WorkspaceError` ('NO_WORKSPACE') if no folder is open.
+  - Full analysis with `analyzeWorkspace()`, tracking total size and oversized files.
+  - Byte formatting helper `formatBytes()`.
+- **Integrated Command (`src/commands/submitAssignment.ts`):**
+  - Integrates workspace discovery with VS Code `withProgress` notification and cancellation token support.
+- **Testing:**
+  - 24 comprehensive unit tests in `test/suite/workspace.test.ts` covering directory scanning, recursion, exclusions, size limits, glob matching, and empty workspaces.
+  - Lightweight `test/mockVscode.cjs` to enable ultra-fast, robust unit testing without launching full Electron GUI.
+
+---
+
 ## ⏭️ Next Step
 
-**Start Phase 1 — VS Code Extension Skeleton**
+**Start Phase 3 — File Selection UI**
 
 When resuming:
 1. Read this PROGRESS.md file first.
-2. The repo currently contains only: `.gitignore`, `README.md`, `PROGRESS.md`, `.git/`
-3. Begin by scaffolding the full TypeScript VS Code extension structure as described in Phase 1 of the plan.
-4. Key commands to implement (stubs only): `Classroom: Submit Assignment`, `Classroom: Sign In`, `Classroom: Sign Out`
-5. Acceptance criteria: compiles, launches in Extension Development Host, commands appear in Command Palette.
+2. Review Phase 3 specifications in `VS Code Extension — Google Classroom Direct Submission.md`:
+   - Interactive QuickPick with multi-select checkboxes for file/folder selection.
+   - User can select/deselect files and folders.
+   - Live summary display (e.g. "Files: 14 | Total size: 1.8 MB | Excluded: 2 folders").
+   - Cancellation handling.
+   - Unit tests for selection logic.
+3. Acceptance criteria:
+   - TypeScript compiles cleanly (`npm run typecheck`).
+   - `npm test` passes.
+   - `npm run compile:prod` succeeds.
 
 ---
 
@@ -145,10 +180,50 @@ When resuming:
 
 ```
 vs-google-classroom-extention/
-├── .git/
-├── .gitignore          ← Created in Phase 0
-├── PROGRESS.md         ← This file
-└── README.md
+├── .eslintrc.json
+├── .gitignore
+├── .prettierrc.json
+├── PROGRESS.md
+├── esbuild.config.js
+├── package.json
+├── src/
+│   ├── extension.ts
+│   ├── auth/
+│   │   └── GoogleAuthService.ts
+│   ├── classroom/
+│   │   └── ClassroomService.ts
+│   ├── commands/
+│   │   ├── index.ts
+│   │   ├── selectAssignment.ts
+│   │   ├── selectCourse.ts
+│   │   ├── signIn.ts
+│   │   ├── signOut.ts
+│   │   ├── submitAssignment.ts
+│   │   └── viewStatus.ts
+│   ├── drive/
+│   │   └── DriveService.ts
+│   ├── errors/
+│   │   └── errors.ts
+│   ├── submission/
+│   │   └── SubmissionService.ts
+│   ├── types/
+│   │   └── index.ts
+│   ├── utils/
+│   │   ├── extensionState.ts
+│   │   └── logger.ts
+│   └── workspace/
+│       ├── FileFilter.ts
+│       ├── FileScanner.ts
+│       └── WorkspaceService.ts
+├── test/
+│   ├── mockVscode.cjs
+│   ├── runTests.ts
+│   └── suite/
+│       ├── extension.test.ts
+│       ├── index.ts
+│       └── workspace.test.ts
+├── tsconfig.json
+└── tsconfig.test.json
 ```
 
 ---
@@ -159,3 +234,4 @@ vs-google-classroom-extention/
 - **Plan MD location:** `VS Code Extension — Google Classroom Direct Submission.md` (gitignored — local only)
 - **Never commit:** `.env`, `credentials.json`, `token.json`, `*.pem`, `*.key`, `service-account*.json`
 - **Branch strategy:** Work on `main` during development; create release branches for Marketplace prep.
+
