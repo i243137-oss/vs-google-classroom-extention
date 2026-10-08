@@ -14,7 +14,7 @@
 | 0 | Project Discovery & Design | ✅ Complete |
 | 1 | VS Code Extension Skeleton | ✅ Complete |
 | 2 | Workspace & File Discovery | ✅ Complete |
-| 3 | File Selection UI | ⏳ Not Started |
+| 3 | File Selection UI | ✅ Complete |
 | 4 | Google OAuth Authentication | ⏳ Not Started |
 | 5 | Google Classroom — Courses | ⏳ Not Started |
 | 6 | Assignment Discovery | ⏳ Not Started |
@@ -157,18 +157,44 @@ WorkspaceService → FileScanner → FileFilter
 
 ---
 
+## ✅ Phase 3 — File Selection UI
+
+**Status:** Complete  
+**Completed:** 2026-10-08
+
+### Summary of Implementation:
+- **`FileSelectionManager` (`src/ui/FilePicker.ts`):**
+  - Converts `WorkspaceAnalysis` into rich `FileQuickPickItem` items with icons (`$(folder)`, `$(file)`), path labels, formatted sizes, and exclusion hints.
+  - Automatically pre-selects included files and folders containing included files.
+  - Excluded files/folders (such as `.env` or files above size limit) default to unchecked.
+  - Resolves selections with directory cascading: toggling a directory unit selects/deselects all underlying child files.
+  - Computes complete metrics: total files, formatted size (e.g. `1.8 MB`), excluded count.
+  - Deduplicates items when parent directory and individual child files are both selected.
+- **`FilePicker` (`src/ui/FilePicker.ts`):**
+  - Interactive multi-select `QuickPick` (`canSelectMany: true`) with search matching across labels, descriptions, and details.
+  - Modal confirmation dialog displaying live metrics (`Files: 14 | Total size: 1.8 MB | Excluded: 2 files`).
+  - Graceful cancellation handling on escape/close.
+- **Command Integration (`src/commands/submitAssignment.ts`):**
+  - Integrated into the submission command flow right after workspace analysis.
+  - Displays summary info notifications and verifies at least one file is selected.
+- **Testing:**
+  - 6 unit tests in `test/suite/filePicker.test.ts` testing item generation, pre-selection flags, directory cascades, deduplication, empty selections, and confirmation validation.
+  - Suite now has **39 tests passing** in < 300ms.
+
+---
+
 ## ⏭️ Next Step
 
-**Start Phase 3 — File Selection UI**
+**Start Phase 4 — Google Cloud / OAuth Authentication**
 
 When resuming:
 1. Read this PROGRESS.md file first.
-2. Review Phase 3 specifications in `VS Code Extension — Google Classroom Direct Submission.md`:
-   - Interactive QuickPick with multi-select checkboxes for file/folder selection.
-   - User can select/deselect files and folders.
-   - Live summary display (e.g. "Files: 14 | Total size: 1.8 MB | Excluded: 2 folders").
-   - Cancellation handling.
-   - Unit tests for selection logic.
+2. Review Phase 4 specifications in `VS Code Extension — Google Classroom Direct Submission.md`:
+   - Google OAuth 2.0 implementation with Authorization Code + PKCE flow.
+   - Minimal required scopes (`classroom.courses.readonly`, `classroom.coursework.me.readonly`, `drive.file`, etc.).
+   - Secure token storage in `vscode.SecretStorage` (never in settings, .env, or plain files; never logged).
+   - Sign in, sign out, automatic token refresh, token expiry handling.
+   - Setup documentation in `docs/google-cloud-setup.md`.
 3. Acceptance criteria:
    - TypeScript compiles cleanly (`npm run typecheck`).
    - `npm test` passes.
@@ -208,6 +234,8 @@ vs-google-classroom-extention/
 │   │   └── SubmissionService.ts
 │   ├── types/
 │   │   └── index.ts
+│   ├── ui/
+│   │   └── FilePicker.ts
 │   ├── utils/
 │   │   ├── extensionState.ts
 │   │   └── logger.ts
@@ -220,6 +248,7 @@ vs-google-classroom-extention/
 │   ├── runTests.ts
 │   └── suite/
 │       ├── extension.test.ts
+│       ├── filePicker.test.ts
 │       ├── index.ts
 │       └── workspace.test.ts
 ├── tsconfig.json
@@ -234,4 +263,5 @@ vs-google-classroom-extention/
 - **Plan MD location:** `VS Code Extension — Google Classroom Direct Submission.md` (gitignored — local only)
 - **Never commit:** `.env`, `credentials.json`, `token.json`, `*.pem`, `*.key`, `service-account*.json`
 - **Branch strategy:** Work on `main` during development; create release branches for Marketplace prep.
+
 

@@ -32,6 +32,33 @@ Module.prototype.require = function (id) {
         showWarningMessage: async () => undefined,
         showErrorMessage: async () => undefined,
         showQuickPick: async () => undefined,
+        createQuickPick: () => {
+          let acceptCb = () => {};
+          let hideCb = () => {};
+          return {
+            title: '',
+            placeholder: '',
+            canSelectMany: true,
+            ignoreFocusOut: true,
+            matchOnDescription: true,
+            matchOnDetail: true,
+            items: [],
+            selectedItems: [],
+            onDidAccept: (cb) => {
+              acceptCb = cb;
+              return { dispose: () => {} };
+            },
+            onDidHide: (cb) => {
+              hideCb = cb;
+              return { dispose: () => {} };
+            },
+            show: () => {},
+            hide: () => {},
+            dispose: () => {},
+            _accept: () => acceptCb(),
+            _hide: () => hideCb(),
+          };
+        },
         withProgress: async (_options, task) => {
           return task({ report: () => {} }, { isCancellationRequested: false });
         },

@@ -3,12 +3,14 @@ import { ExtensionState } from '../utils/extensionState.js';
 import { Logger } from '../utils/logger.js';
 import { WorkspaceService } from '../workspace/WorkspaceService.js';
 import { WorkspaceError } from '../errors/errors.js';
+import { FilePicker } from '../ui/FilePicker.js';
 
 /**
  * Classroom: Submit Assignment
  *
- * Phase 2: Adds real workspace analysis after the auth check stub.
- * Phases 3+: Will add file selection UI, Classroom API, Drive upload, etc.
+ * Phase 2: Workspace analysis.
+ * Phase 3: Interactive File Selection UI + submission summary.
+ * Phases 4+: Google OAuth, Courses, Assignments, Drive Upload, Turn In.
  */
 export async function submitAssignmentCommand(state: ExtensionState): Promise<void> {
   const logger = Logger.getInstance();
@@ -32,7 +34,7 @@ export async function submitAssignmentCommand(state: ExtensionState): Promise<vo
     const config = state.getConfiguration();
     const workspaceService = new WorkspaceService();
 
-    await vscode.window.withProgress(
+    let analysis = await vscode.window.withProgress(
       {
         location: vscode.ProgressLocation.Notification,
         title: 'Classroom Submit',
@@ -40,30 +42,40 @@ export async function submitAssignmentCommand(state: ExtensionState): Promise<vo
       },
       async (progress, token) => {
         progress.report({ message: 'Analysing workspace…' });
-
-        const analysis = await workspaceService.analyzeWorkspace(config, token);
-
-        if (token.isCancellationRequested) {
-          return;
-        }
-
-        const totalSizeStr = WorkspaceService.formatBytes(analysis.totalIncludedBytes);
-        const fileCount = analysis.includedFiles.filter((f) => !f.isDirectory).length;
-
-        // ── Phases 3–11 will add: file picker, course/assignment selection,
-        //    upload, attach, turn-in. For now show analysis summary. ──────────
-        void vscode.window.showInformationMessage(
-          `📁 Workspace: ${analysis.folderName} | ` +
-          `${fileCount} files | ${totalSizeStr} | ` +
-          `${analysis.excludedFiles.length} excluded. ` +
-          '(File selection UI comes in Phase 3)',
-        );
-
-        logger.info(
-          `Workspace analysis: ${fileCount} files, ${totalSizeStr}, ` +
-          `${analysis.excludedFiles.length} excluded.`,
-        );
+        return workspaceService.analyzeWorkspace(config, token);
       },
+    );
+
+    if (!analysis) {
+      return;
+    }
+
+    // ── Step 3: Interactive File Selection UI (Phase 3) ───────────────────────
+    const filePicker = new FilePicker();
+    const selectionResult = await filePicker.promptFileSelection(analysis);
+
+    if (!selectionResult) {
+      void vscode.window.showInformationMessage('Classroom Submit: File selection cancelled.');
+      return;
+    }
+
+    if (selectionResult.totalFiles === 0) {
+      void vscode.window.showWarningMessage('Classroom Submit: No files selected for submission.');
+      return;
+    }
+
+    // Show submission summary (per Phase 3 spec)
+    const summaryMsg =
+      `📋 Submission Summary:\n` +
+      `Files: ${selectionResult.totalFiles}\n` +
+      `Total size: ${selectionResult.formattedSize}\n` +
+      `Excluded: ${selectionResult.excludedCount} files`;
+
+    logger.info(summaryMsg.replace(/\n/g, ' | '));
+
+    void vscode.window.showInformationMessage(
+      `✓ Files selected: ${selectionResult.totalFiles} files (${selectionResult.formattedSize}) ready. ` +
+      `(Google Drive upload and Classroom submission will be integrated in subsequent phases).`,
     );
   } catch (error) {
     logger.error('Submit Assignment command failed', error);

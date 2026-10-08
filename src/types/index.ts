@@ -72,6 +72,14 @@ export interface WorkspaceFile {
   isDirectory: boolean;
 }
 
+export interface FileSelectionResult {
+  selectedFiles: WorkspaceFile[];
+  totalBytes: number;
+  totalFiles: number;
+  excludedCount: number;
+  formattedSize: string;
+}
+
 export interface SubmissionSummary {
   course: Course;
   courseWork: CourseWork;
