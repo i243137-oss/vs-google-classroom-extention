@@ -1,0 +1,126 @@
+{
+  "name": "classroom-submit",
+  "displayName": "Classroom Submit",
+  "description": "Submit code assignments directly to Google Classroom from VS Code.",
+  "version": "0.1.0",
+  "publisher": "classroom-submit",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Other", "Education"],
+  "keywords": ["google classroom", "classroom", "assignment", "submit", "education"],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "classroomSubmit.submitAssignment",
+        "title": "Submit Assignment",
+        "category": "Classroom"
+      },
+      {
+        "command": "classroomSubmit.signIn",
+        "title": "Sign In",
+        "category": "Classroom"
+      },
+      {
+        "command": "classroomSubmit.signOut",
+        "title": "Sign Out",
+        "category": "Classroom"
+      },
+      {
+        "command": "classroomSubmit.selectCourse",
+        "title": "Select Course",
+        "category": "Classroom"
+      },
+      {
+        "command": "classroomSubmit.selectAssignment",
+        "title": "Select Assignment",
+        "category": "Classroom"
+      },
+      {
+        "command": "classroomSubmit.viewStatus",
+        "title": "View Submission Status",
+        "category": "Classroom"
+      }
+    ],
+    "configuration": {
+      "title": "Classroom Submit",
+      "properties": {
+        "classroomSubmit.excludedDirectories": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [
+            ".git", "node_modules", ".venv", "venv", "__pycache__",
+            "dist", "build", "target", "coverage", ".next", ".cache", "out"
+          ],
+          "description": "Directory names to exclude from submission."
+        },
+        "classroomSubmit.excludedFiles": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [".env", "*.vsix", "*.tsbuildinfo", "*.log"],
+          "description": "File glob patterns to exclude from submission."
+        },
+        "classroomSubmit.maxFileSizeMb": {
+          "type": "number",
+          "default": 50,
+          "description": "Maximum individual file size (MB) to include in submissions."
+        },
+        "classroomSubmit.confirmBeforeSubmit": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show a confirmation dialog before turning in the assignment."
+        },
+        "classroomSubmit.detectSecrets": {
+          "type": "boolean",
+          "default": true,
+          "description": "Warn before submitting files that may contain credentials or secrets."
+        },
+        "classroomSubmit.showNotifications": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show progress and status notifications."
+        },
+        "classroomSubmit.clientId": {
+          "type": "string",
+          "default": "",
+          "description": "Google OAuth 2.0 Client ID from your Google Cloud Console project."
+        },
+        "classroomSubmit.clientSecret": {
+          "type": "string",
+          "default": "",
+          "description": "Google OAuth 2.0 Client Secret from your Google Cloud Console project."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile:prod",
+    "compile": "node esbuild.config.js",
+    "compile:prod": "tsc --noEmit && node esbuild.config.js --production",
+    "watch": "node esbuild.config.js --watch",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --ext ts",
+    "pretest": "tsc -p tsconfig.test.json --noEmit && node esbuild.config.js && tsc -p tsconfig.test.json",
+    "test": "node ./out-test/test/runTests.js",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/chai": "^5.0.1",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^20.0.0",
+    "@types/sinon": "^17.0.4",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "@vscode/test-electron": "^2.5.2",
+    "chai": "^5.1.2",
+    "esbuild": "^0.24.0",
+    "eslint": "^8.0.0",
+    "mocha": "^10.8.2",
+    "prettier": "^3.0.0",
+    "sinon": "^19.0.2",
+    "typescript": "~5.7.0"
+  }
+}
