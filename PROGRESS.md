@@ -12,7 +12,7 @@
 | Phase | Title | Status |
 |-------|-------|--------|
 | 0 | Project Discovery & Design | ✅ Complete |
-| 1 | VS Code Extension Skeleton | ⏳ Not Started |
+| 1 | VS Code Extension Skeleton | ✅ Complete |
 | 2 | Workspace & File Discovery | ⏳ Not Started |
 | 3 | File Selection UI | ⏳ Not Started |
 | 4 | Google OAuth Authentication | ⏳ Not Started |
