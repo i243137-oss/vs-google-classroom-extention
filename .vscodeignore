@@ -1,0 +1,12 @@
+.vscode/**
+.vscode-test/**
+test/**
+src/**
+out-test/**
+tsconfig*.json
+esbuild.config.js
+.eslintrc*
+.prettier*
+PROGRESS.md
+docs/**
+*.map
