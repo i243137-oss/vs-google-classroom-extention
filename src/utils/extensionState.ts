@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { ExtensionConfiguration } from '../types/index.js';
 import { GoogleAuthService, GoogleAuthServiceImpl } from '../auth/GoogleAuthService.js';
 import { ClassroomService } from '../classroom/ClassroomService.js';
+import { SubmissionService } from '../submission/SubmissionService.js';
 
 /**
  * Shared mutable state for the extension lifetime.
@@ -14,6 +15,7 @@ export class ExtensionState {
   public readonly context: vscode.ExtensionContext;
   public readonly authService: GoogleAuthService;
   public readonly classroomService: ClassroomService;
+  public readonly submissionService: SubmissionService;
 
   /** True once the user has successfully authenticated. */
   public isAuthenticated: boolean = false;
@@ -38,6 +40,7 @@ export class ExtensionState {
       },
     );
     this.classroomService = new ClassroomService(() => this.authService.getAccessToken());
+    this.submissionService = new SubmissionService(() => this.authService.getAccessToken());
   }
 
   /** Read the current extension configuration from VS Code settings. */
