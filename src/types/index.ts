@@ -29,19 +29,24 @@ export interface CourseWork {
   id: string;
   courseId: string;
   title: string;
-  description?: string;
+  description?: string | undefined;
   dueDate?: {
     year: number;
     month: number;
     day: number;
-  };
+  } | undefined;
   dueTime?: {
-    hours: number;
-    minutes: number;
-  };
-  state: 'PUBLISHED' | 'DRAFT' | 'DELETED';
-  workType: 'ASSIGNMENT' | 'SHORT_ANSWER_QUESTION' | 'MULTIPLE_CHOICE_QUESTION';
-  alternateLink: string;
+    hours?: number | undefined;
+    minutes?: number | undefined;
+    seconds?: number | undefined;
+    nanos?: number | undefined;
+  } | undefined;
+  state?: 'PUBLISHED' | 'DRAFT' | 'DELETED' | undefined;
+  workType?: 'ASSIGNMENT' | 'SHORT_ANSWER_QUESTION' | 'MULTIPLE_CHOICE_QUESTION' | undefined;
+  maxPoints?: number | undefined;
+  alternateLink?: string | undefined;
+  creationTime?: string | undefined;
+  updateTime?: string | undefined;
 }
 
 export interface StudentSubmission {
@@ -54,16 +59,16 @@ export interface StudentSubmission {
     | 'TURNED_IN'
     | 'RETURNED'
     | 'RECLAIMED_BY_STUDENT';
-  late: boolean;
-  alternateLink: string;
-  driveFiles?: DriveFileAttachment[];
+  late?: boolean | undefined;
+  alternateLink?: string | undefined;
+  driveFiles?: DriveFileAttachment[] | undefined;
 }
 
 export interface DriveFileAttachment {
   id: string;
   title: string;
-  alternateLink: string;
-  thumbnailUrl?: string;
+  alternateLink?: string | undefined;
+  thumbnailUrl?: string | undefined;
 }
 
 export interface WorkspaceFile {
