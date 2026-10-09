@@ -19,7 +19,7 @@
 | 5 | Google Classroom — Courses | ✅ Complete |
 | 6 | Assignment Discovery | ✅ Complete |
 | 7 | Submission Model | ✅ Complete |
-| 8 | Google Drive File Upload | ⏳ Not Started |
+| 8 | Google Drive File Upload | ✅ Complete |
 | 9 | Attach Files to Classroom Submission | ⏳ Not Started |
 | 10 | Turn In / Submit | ⏳ Not Started |
 | 11 | Complete Submission Command | ⏳ Not Started |
@@ -295,16 +295,39 @@ WorkspaceService → FileScanner → FileFilter
 
 ---
 
+## ✅ Phase 8 — Google Drive File Upload
+
+**Status:** Complete  
+**Completed:** 2026-10-09
+
+### Summary of Implementation:
+- **`DriveService` (`src/drive/DriveService.ts`):**
+  - Fully implemented Google Drive API v3 file and folder operations.
+  - **Multipart Upload Protocol:** Single-request upload for small and medium files (< 5 MB) combining metadata JSON and raw binary content with custom multipart boundary.
+  - **Resumable Chunked Upload Protocol:** Session initialization via `uploadType=resumable` with `X-Upload-Content-*` headers, session URI capture, chunked PUT requests in 512 KB blocks (multiples of 256 KB per Google Drive specifications), and byte-range tracking (`Content-Range`).
+  - **Folder Hierarchy Management:** `findOrCreateFolder` with query sanitization (`mimeType = 'application/vnd.google-apps.folder'`), and `getOrCreateClassroomFolder` creating the structured tree `Classroom Submit` ➔ `<Course Name>` ➔ `<Assignment Name>`.
+  - **MIME Type Detection:** Comprehensive extension lookup supporting 30+ programming languages, markup formats, configs, archives, and binaries (`.ts`, `.py`, `.json`, `.md`, `.zip`, `.pdf`, etc.).
+  - **Batch Uploading:** `uploadBatch` iterates file manifests with per-file progress callbacks for UI notifications.
+  - **Typed Errors & Diagnostics:** Maps Drive API HTTP error responses (403, 404, 500, network failure) to student-friendly `DriveApiError`.
+- **Extension State Wiring (`src/utils/extensionState.ts`):**
+  - Instantiated `driveService` in `ExtensionState` with dynamic access token provider.
+- **Testing:**
+  - 15 unit tests in `test/suite/drive.test.ts` covering MIME type resolution, folder search & creation, hierarchy construction, multipart upload, resumable upload chunking, disk file reading, batch uploads, and HTTP error handling.
+  - Test suite now has **104 passing tests** across 8 test suites with 0 failures.
+
+---
+
 ## ⏭️ Next Step
 
-**Start Phase 8 — Google Drive File Upload**
+**Start Phase 9 — Attach Files to Classroom Submission**
 
 When resuming:
-1. Review Phase 8 specifications:
-   - Implement `DriveService` for uploading files to student's Google Drive folder.
-   - Use Google Drive API v3 multipart upload for small/medium project files and resumable upload for larger files.
-   - Support creating or locating dedicated Classroom project folders on Drive.
-   - Return uploaded Drive file IDs and web view links.
+1. Review Phase 9 specifications:
+   - Link uploaded Drive files (`driveFiles`) to student submission record.
+   - Use Google Classroom API `studentSubmissions.modifyAttachments` endpoint.
+   - Build request body: `{ addAttachments: [{ driveFile: { id: fileId } }] }`.
+   - Handle permissions (Google Classroom automatically shares attached Drive files with course teachers).
+   - Handle errors when modifying attachments (e.g. if submission is in `TURNED_IN` state, guide student to reclaim).
 2. Acceptance criteria:
    - TypeScript compiles cleanly (`npm run typecheck`).
    - Linter passes (`npm run lint`).
@@ -339,7 +362,8 @@ vs-google-classroom-extention/
 │   │   ├── submitAssignment.ts
 │   │   └── viewStatus.ts
 │   ├── drive/
-│   │   └── DriveService.ts
+│   │   ├── DriveService.ts
+│   │   └── types.ts
 │   ├── errors/
 │   │   └── errors.ts
 │   ├── submission/
@@ -365,6 +389,7 @@ vs-google-classroom-extention/
 │       ├── assignments.test.ts
 │       ├── auth.test.ts
 │       ├── courses.test.ts
+│       ├── drive.test.ts
 │       ├── extension.test.ts
 │       ├── filePicker.test.ts
 │       ├── index.ts

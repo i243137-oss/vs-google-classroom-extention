@@ -3,6 +3,7 @@ import { ExtensionConfiguration } from '../types/index.js';
 import { GoogleAuthService, GoogleAuthServiceImpl } from '../auth/GoogleAuthService.js';
 import { ClassroomService } from '../classroom/ClassroomService.js';
 import { SubmissionService } from '../submission/SubmissionService.js';
+import { DriveService } from '../drive/DriveService.js';
 
 /**
  * Shared mutable state for the extension lifetime.
@@ -16,6 +17,7 @@ export class ExtensionState {
   public readonly authService: GoogleAuthService;
   public readonly classroomService: ClassroomService;
   public readonly submissionService: SubmissionService;
+  public readonly driveService: DriveService;
 
   /** True once the user has successfully authenticated. */
   public isAuthenticated: boolean = false;
@@ -41,6 +43,7 @@ export class ExtensionState {
     );
     this.classroomService = new ClassroomService(() => this.authService.getAccessToken());
     this.submissionService = new SubmissionService(() => this.authService.getAccessToken());
+    this.driveService = new DriveService(() => this.authService.getAccessToken());
   }
 
   /** Read the current extension configuration from VS Code settings. */
