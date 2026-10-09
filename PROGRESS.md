@@ -18,7 +18,7 @@
 | 4 | Google OAuth Authentication | ✅ Complete |
 | 5 | Google Classroom — Courses | ✅ Complete |
 | 6 | Assignment Discovery | ✅ Complete |
-| 7 | Submission Model | ⏳ Not Started |
+| 7 | Submission Model | ✅ Complete |
 | 8 | Google Drive File Upload | ⏳ Not Started |
 | 9 | Attach Files to Classroom Submission | ⏳ Not Started |
 | 10 | Turn In / Submit | ⏳ Not Started |
@@ -268,16 +268,43 @@ WorkspaceService → FileScanner → FileFilter
 
 ---
 
+## ✅ Phase 7 — Submission Model
+
+**Status:** Complete  
+**Completed:** 2026-10-09
+
+### Summary of Implementation:
+- **`AssignmentSubmission` Abstraction (`src/submission/types.ts`):**
+  - Modeled Google Classroom's internal student submission architecture accurately.
+  - Defined explicit states: `'NEW'`, `'CREATED'`, `'TURNED_IN'`, `'RETURNED'`, `'RECLAIMED_BY_STUDENT'`.
+  - Added derived convenience flags: `isSubmitted`, `canSubmit`, `canReclaim`, `isResubmission`.
+- **`SubmissionService` (`src/submission/SubmissionService.ts`):**
+  - Implemented `getStudentSubmission(courseId, courseworkId)` querying `courses/{courseId}/courseWork/{courseWorkId}/studentSubmissions?userId=me`.
+  - Architecture compliance: Locates auto-provisioned student submissions created upon coursework publishing (students cannot manually create new records).
+  - Implemented `determineSubmissionState(state, late)`: computes user-facing state labels, descriptions, and action availability.
+  - Implemented `reclaimSubmission(courseId, courseworkId, submissionId)` calling the `:reclaim` endpoint for un-submitting `TURNED_IN` work so new files can be attached.
+  - Maps API errors cleanly via `friendlyHttpError` and `SubmissionError`.
+- **Command Integration (`src/commands/viewStatus.ts`):**
+  - Integrated `SubmissionService` into the `classroomSubmit.viewStatus` command.
+  - Shows current status, overdue/late indicator, points/grade, and interactive actions.
+  - Offers immediate "Reclaim Submission" action with confirmation dialog and progress notification.
+  - Provides "Open in Browser" button linking to Google Classroom web interface.
+- **Testing:**
+  - 11 unit tests in `test/suite/submission.test.ts` verifying state determination, submission query, error guards, HTTP 404 handling, and reclaim requests.
+  - Test suite now has **89 passing tests** across 7 test suites with 0 failures.
+
+---
+
 ## ⏭️ Next Step
 
-**Start Phase 7 — Submission Model**
+**Start Phase 8 — Google Drive File Upload**
 
 When resuming:
-1. Review Phase 7 specifications:
-   - Understand the exact Google Classroom submission model.
-   - Implement internal abstraction `AssignmentSubmission` (courseId, courseworkId, submissionId, state).
-   - Locate/create the student's submission where supported.
-   - Determine current submission state, detect whether assignment is already submitted, whether resubmission is possible, and handle returned/turned-in states appropriately.
+1. Review Phase 8 specifications:
+   - Implement `DriveService` for uploading files to student's Google Drive folder.
+   - Use Google Drive API v3 multipart upload for small/medium project files and resumable upload for larger files.
+   - Support creating or locating dedicated Classroom project folders on Drive.
+   - Return uploaded Drive file IDs and web view links.
 2. Acceptance criteria:
    - TypeScript compiles cleanly (`npm run typecheck`).
    - Linter passes (`npm run lint`).
@@ -301,7 +328,8 @@ vs-google-classroom-extention/
 │   ├── auth/
 │   │   └── GoogleAuthService.ts
 │   ├── classroom/
-│   │   └── ClassroomService.ts
+│   │   ├── ClassroomService.ts
+│   │   └── types.ts
 │   ├── commands/
 │   │   ├── index.ts
 │   │   ├── selectAssignment.ts
@@ -315,10 +343,13 @@ vs-google-classroom-extention/
 │   ├── errors/
 │   │   └── errors.ts
 │   ├── submission/
-│   │   └── SubmissionService.ts
+│   │   ├── SubmissionService.ts
+│   │   └── types.ts
 │   ├── types/
 │   │   └── index.ts
 │   ├── ui/
+│   │   ├── AssignmentPicker.ts
+│   │   ├── CoursePicker.ts
 │   │   └── FilePicker.ts
 │   ├── utils/
 │   │   ├── extensionState.ts
@@ -331,9 +362,13 @@ vs-google-classroom-extention/
 │   ├── mockVscode.cjs
 │   ├── runTests.ts
 │   └── suite/
+│       ├── assignments.test.ts
+│       ├── auth.test.ts
+│       ├── courses.test.ts
 │       ├── extension.test.ts
 │       ├── filePicker.test.ts
 │       ├── index.ts
+│       ├── submission.test.ts
 │       └── workspace.test.ts
 ├── tsconfig.json
 └── tsconfig.test.json
