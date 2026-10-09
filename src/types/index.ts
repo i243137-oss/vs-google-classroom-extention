@@ -45,6 +45,7 @@ export interface CourseWork {
   workType?: 'ASSIGNMENT' | 'SHORT_ANSWER_QUESTION' | 'MULTIPLE_CHOICE_QUESTION' | undefined;
   maxPoints?: number | undefined;
   alternateLink?: string | undefined;
+  associatedWithDeveloper?: boolean | undefined;
   creationTime?: string | undefined;
   updateTime?: string | undefined;
 }
@@ -61,6 +62,7 @@ export interface StudentSubmission {
     | 'RECLAIMED_BY_STUDENT';
   late?: boolean | undefined;
   alternateLink?: string | undefined;
+  associatedWithDeveloper?: boolean | undefined;
   driveFiles?: DriveFileAttachment[] | undefined;
   assignmentSubmission?: {
     attachments?: Attachment[] | undefined;

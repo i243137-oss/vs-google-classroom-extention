@@ -37,6 +37,8 @@ export async function submitAssignmentCommand(state: ExtensionState): Promise<vo
   const logger = Logger.getInstance();
   logger.info('Submit Assignment command invoked.');
 
+  let alternateClassroomUrl: string | undefined;
+
   try {
     // ── Step 1: Ensure Authentication ─────────────────────────────────────────
     const isAuthed = await state.authService.isAuthenticated();
@@ -121,6 +123,8 @@ export async function submitAssignmentCommand(state: ExtensionState): Promise<vo
       courseworkId = chosenAssignment.courseWork.id;
       selectedCourseWork = chosenAssignment.courseWork;
     }
+
+    alternateClassroomUrl = selectedCourseWork.alternateLink;
 
     // ── Step 4: Verify Current Student Submission State ───────────────────────
     let submission: AssignmentSubmission = await vscode.window.withProgress(
@@ -245,13 +249,20 @@ export async function submitAssignmentCommand(state: ExtensionState): Promise<vo
       relativePath: file.relativePath,
     }));
 
-    const resultSubmission = await vscode.window.withProgress(
+    interface PipelineResult {
+      mode: 'TURNED_IN' | 'DRIVE_READY';
+      targetFolder: { id: string; name: string; webViewLink?: string | undefined };
+      uploadedFiles: Array<{ id: string; name: string }>;
+      submission?: AssignmentSubmission | undefined;
+    }
+
+    const pipelineResult = await vscode.window.withProgress<PipelineResult>(
       {
         location: vscode.ProgressLocation.Notification,
         title: 'Classroom Submit: Submitting Assignment',
         cancellable: false,
       },
-      async (progress) => {
+      async (progress): Promise<PipelineResult> => {
         // Stage A: Google Drive folder hierarchy
         progress.report({ message: 'Stage 1/4: Resolving Google Drive submission folder…' });
         const targetFolder = await state.driveService.getOrCreateClassroomFolder(
@@ -273,53 +284,137 @@ export async function submitAssignmentCommand(state: ExtensionState): Promise<vo
           },
         });
 
+        // Stage C: Check Developer Project association
+        const isAssociated =
+          selectedCourseWork.associatedWithDeveloper ?? submission.associatedWithDeveloper;
+        if (isAssociated === false) {
+          logger.info(
+            `CourseWork ${courseworkId} is not associated with this developer project. Files saved to Google Drive. Guided turn-in enabled.`,
+          );
+          return {
+            mode: 'DRIVE_READY',
+            targetFolder,
+            uploadedFiles,
+            submission,
+          };
+        }
+
         // Stage C: Attach uploaded Drive files to Classroom submission
         progress.report({
           message: `Stage 3/4: Attaching files to Classroom submission…`,
         });
 
         const driveFileIds = uploadedFiles.map((file) => file.id);
-        await state.submissionService.attachDriveFiles(
-          courseId,
-          courseworkId,
-          submission.submissionId,
-          driveFileIds,
-        );
+        try {
+          await state.submissionService.attachDriveFiles(
+            courseId,
+            courseworkId,
+            submission.submissionId,
+            driveFileIds,
+          );
+        } catch (err) {
+          if (err instanceof SubmissionError && err.code === 'PROJECT_PERMISSION_DENIED') {
+            logger.info(
+              'ProjectPermissionDenied during attachDriveFiles; falling back to Drive-ready flow.',
+            );
+            return {
+              mode: 'DRIVE_READY',
+              targetFolder,
+              uploadedFiles,
+              submission,
+            };
+          }
+          throw err;
+        }
 
         // Stage D: Turn in submission to Google Classroom
         progress.report({
           message: `Stage 4/4: Finalizing submission and turning in…`,
         });
 
-        return state.submissionService.turnInSubmission(
-          courseId,
-          courseworkId,
-          submission.submissionId,
-        );
+        try {
+          const finalSub = await state.submissionService.turnInSubmission(
+            courseId,
+            courseworkId,
+            submission.submissionId,
+          );
+          return {
+            mode: 'TURNED_IN',
+            targetFolder,
+            uploadedFiles,
+            submission: finalSub,
+          };
+        } catch (err) {
+          if (err instanceof SubmissionError && err.code === 'PROJECT_PERMISSION_DENIED') {
+            logger.info(
+              'ProjectPermissionDenied during turnInSubmission; falling back to Drive-ready flow.',
+            );
+            return {
+              mode: 'DRIVE_READY',
+              targetFolder,
+              uploadedFiles,
+              submission,
+            };
+          }
+          throw err;
+        }
       },
     );
 
     // ── Step 8: Completion Feedback ───────────────────────────────────────────
-    logger.info(`Assignment ${courseworkId} turned in successfully. Late: ${Boolean(resultSubmission.late)}`);
+    if (pipelineResult.mode === 'DRIVE_READY') {
+      logger.info(
+        `Files uploaded to Google Drive. Providing guided completion for Classroom web portal turn-in.`,
+      );
 
-    const openButton = resultSubmission.alternateLink ? 'Open in Classroom' : undefined;
+      const classroomUrl = selectedCourseWork.alternateLink || submission.alternateLink;
+      const buttons: string[] = [];
+      if (classroomUrl) {
+        buttons.push('Open in Classroom');
+      }
+      if (pipelineResult.targetFolder.webViewLink) {
+        buttons.push('View in Drive');
+      }
+      buttons.push('OK');
+
+      const choice = await vscode.window.showInformationMessage(
+        `✓ Uploaded ${filesToUpload.length} file(s) to Google Drive in folder "${selectedCourse.name} / ${selectedCourseWork.title}".\n\n` +
+          `ℹ️ Google Classroom Policy: Because this assignment was created by your teacher in the Classroom portal, Google requires students to turn in the assignment directly in Google Classroom.\n\n` +
+          `Your files are ready in Drive! Click "Open in Classroom" to attach them and turn in.`,
+        ...buttons,
+      );
+
+      if (choice === 'Open in Classroom' && classroomUrl) {
+        void vscode.env.openExternal(vscode.Uri.parse(classroomUrl));
+      } else if (choice === 'View in Drive' && pipelineResult.targetFolder.webViewLink) {
+        void vscode.env.openExternal(vscode.Uri.parse(pipelineResult.targetFolder.webViewLink));
+      }
+      return;
+    }
+
+    const finalSubmission = pipelineResult.submission;
+    logger.info(
+      `Assignment ${courseworkId} turned in successfully. Late: ${Boolean(finalSubmission?.late)}`,
+    );
+
+    const openButton = finalSubmission?.alternateLink ? 'Open in Classroom' : undefined;
     const buttons = openButton ? [openButton, 'OK'] : ['OK'];
 
-    if (resultSubmission.late) {
+    if (finalSubmission?.late) {
       const choice = await vscode.window.showWarningMessage(
         `⚠️ Assignment turned in successfully (submitted after the due date).`,
         ...buttons,
       );
-      if (choice === openButton && resultSubmission.alternateLink) {
-        void vscode.env.openExternal(vscode.Uri.parse(resultSubmission.alternateLink));
+      if (choice === openButton && finalSubmission.alternateLink) {
+        void vscode.env.openExternal(vscode.Uri.parse(finalSubmission.alternateLink));
       }
     } else {
       const choice = await vscode.window.showInformationMessage(
         `🎉 Successfully submitted "${selectedCourseWork.title}" to Google Classroom! (${filesToUpload.length} file(s) uploaded)`,
         ...buttons,
       );
-      if (choice === openButton && resultSubmission.alternateLink) {
-        void vscode.env.openExternal(vscode.Uri.parse(resultSubmission.alternateLink));
+      if (choice === openButton && finalSubmission?.alternateLink) {
+        void vscode.env.openExternal(vscode.Uri.parse(finalSubmission.alternateLink));
       }
     }
   } catch (error) {
@@ -346,7 +441,19 @@ export async function submitAssignmentCommand(state: ExtensionState): Promise<vo
         `Google Drive Upload Error: ${error.message}. You can try submitting again or view status.`,
       );
     } else if (error instanceof SubmissionError) {
-      await vscode.window.showErrorMessage(`Submission Error: ${error.message}`);
+      if (error.code === 'PROJECT_PERMISSION_DENIED') {
+        const choice = await vscode.window.showInformationMessage(
+          `Google Classroom Developer Project Policy:\n` +
+            `This assignment was created via the Google Classroom web portal. Google API allows programmatic modification and turn-in only for coursework created by the same Developer Console project.\n\n` +
+            `Your files are safely saved in Google Drive.`,
+          ...(alternateClassroomUrl ? ['Open in Classroom', 'OK'] : ['OK']),
+        );
+        if (choice === 'Open in Classroom' && alternateClassroomUrl) {
+          void vscode.env.openExternal(vscode.Uri.parse(alternateClassroomUrl));
+        }
+      } else {
+        await vscode.window.showErrorMessage(`Submission Error: ${error.message}`);
+      }
     } else {
       await vscode.window.showErrorMessage(
         'Submission failed unexpectedly. Check the Classroom Submit output channel for details.',

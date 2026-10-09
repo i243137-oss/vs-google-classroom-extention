@@ -14,6 +14,7 @@ export interface AssignmentSubmission {
   isResubmission: boolean;
   late?: boolean | undefined;
   alternateLink?: string | undefined;
+  associatedWithDeveloper?: boolean | undefined;
   assignedGrade?: number | undefined;
   draftGrade?: number | undefined;
   attachments?: DriveFileAttachment[] | undefined;

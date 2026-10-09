@@ -318,6 +318,7 @@ export class SubmissionService implements ISubmissionService {
       isResubmission: info.isResubmission,
       late: raw.late,
       alternateLink: raw.alternateLink,
+      associatedWithDeveloper: raw.associatedWithDeveloper,
       attachments: attachments.length > 0 ? attachments : undefined,
     };
   }
@@ -361,6 +362,16 @@ export class SubmissionService implements ISubmissionService {
       }
 
       this.logger.error(`SubmissionService: HTTP ${res.status} error: ${details || res.statusText}`);
+
+      if (
+        details.includes('ProjectPermissionDenied') ||
+        details.includes('not permitted to make this request')
+      ) {
+        throw new SubmissionError(
+          'Google Classroom Developer Project Policy: This assignment was created via the Google Classroom web portal. Google API allows programmatic modification and turn-in only for coursework created by the same Developer Console project.',
+          'PROJECT_PERMISSION_DENIED',
+        );
+      }
 
       if (details.toLowerCase().includes('turned in') || details.toLowerCase().includes('turned_in')) {
         if (details.toLowerCase().includes('already turned in') || details.toLowerCase().includes('already')) {
