@@ -22,7 +22,7 @@
 | 8 | Google Drive File Upload | ✅ Complete |
 | 9 | Attach Files to Classroom Submission | ✅ Complete |
 | 10 | Turn In / Submit | ✅ Complete |
-| 11 | Complete Submission Command | ⏳ Not Started |
+| 11 | Complete Submission Command | ✅ Complete |
 | 12 | Validation & Pre-submission Checks | ⏳ Not Started |
 | 13 | Settings | ⏳ Not Started |
 | 14 | Error Handling | ⏳ Not Started |
@@ -362,16 +362,42 @@ WorkspaceService → FileScanner → FileFilter
 
 ---
 
+## ✅ Phase 11 — Complete Submission Command
+
+**Status:** Complete  
+**Completed:** 2026-10-09
+
+### Summary of Implementation:
+- **`classroomSubmit.submitAssignment` Full Orchestration (`src/commands/submitAssignment.ts`):**
+  - Fully wired end-to-end assignment submission pipeline:
+    1. **Authentication Check:** Prompts to sign in if unauthenticated.
+    2. **Course Selection:** Automatically prompts `CoursePicker` if none selected or verifies cached selection.
+    3. **Assignment Selection:** Prompts `AssignmentPicker` for chosen course if none selected.
+    4. **Submission State Verification:** Queries student submission; if in `TURNED_IN` state, displays warning modal requiring student to reclaim before proceeding with new files.
+    5. **Workspace Scan & File Selection:** Invokes `WorkspaceService.analyzeWorkspace` with exclusion filters and presents interactive multi-select `FilePicker`.
+    6. **Pre-Submission Confirmation Dialog:** Modal confirmation dialog showing course name, assignment title, due date, overdue warning, resubmission indicator, file count, and total formatted payload size.
+    7. **Unified 4-Stage Progress Execution (`withProgress`):**
+       - Stage 1: Resolves/creates Drive folder hierarchy (`Classroom Submit` / `<Course Name>` / `<Assignment Title>`).
+       - Stage 2: Uploads selected files to Google Drive in batch with live per-file progress reports.
+       - Stage 3: Calls `attachDriveFiles` linking uploaded Drive file IDs to the Classroom submission record.
+       - Stage 4: Calls `turnInSubmission` finalizing the assignment in Google Classroom.
+    8. **Completion Feedback:** Alerts user if submitted late vs on-time, with an interactive "Open in Classroom" browser link.
+- **Testing:**
+  - Added 4 unit tests in `test/suite/submitAssignment.test.ts` verifying authentication guard, reclaim prompt for turned-in assignments, cancellation cleanly without side effects, and complete end-to-end pipeline execution.
+  - Test suite now has **117 passing tests** across 9 test suites with 0 failures.
+
+---
+
 ## ⏭️ Next Step
 
-**Start Phase 11 — Complete Submission Command**
+**Start Phase 12 — Validation & Pre-submission Checks**
 
 When resuming:
-1. Review Phase 11 specifications:
-   - Implement end-to-end `classroomSubmit.submitAssignment` orchestration.
-   - Flow: Ensure Authenticated ➔ Select Course ➔ Select Assignment ➔ Analyze & Select Workspace Files ➔ Confirm Submission Details ➔ Upload Files to Drive ➔ Attach Drive Files to Classroom Submission ➔ Turn In (optional/configurable).
-   - Display overall progress across all stages with cancellable progress reporter.
-   - Handle partial failures cleanly (e.g. files uploaded to Drive but attachment fails).
+1. Review Phase 12 specifications:
+   - Secret detection in staged submission files (e.g. accidental API keys, `.env` leakage, private keys, AWS tokens, passwords).
+   - Empty file warnings and oversized file warnings before upload.
+   - Network connectivity pre-flight checks.
+   - Clean validation UI displaying actionable warnings or blocking dangerous uploads.
 2. Acceptance criteria:
    - TypeScript compiles cleanly (`npm run typecheck`).
    - Linter passes (`npm run lint`).
@@ -438,6 +464,7 @@ vs-google-classroom-extention/
 │       ├── filePicker.test.ts
 │       ├── index.ts
 │       ├── submission.test.ts
+│       ├── submitAssignment.test.ts
 │       └── workspace.test.ts
 ├── tsconfig.json
 └── tsconfig.test.json
