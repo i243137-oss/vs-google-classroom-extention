@@ -17,7 +17,7 @@
 | 3 | File Selection UI | ✅ Complete |
 | 4 | Google OAuth Authentication | ✅ Complete |
 | 5 | Google Classroom — Courses | ✅ Complete |
-| 6 | Assignment Discovery | ⏳ Not Started |
+| 6 | Assignment Discovery | ✅ Complete |
 | 7 | Submission Model | ⏳ Not Started |
 | 8 | Google Drive File Upload | ⏳ Not Started |
 | 9 | Attach Files to Classroom Submission | ⏳ Not Started |
@@ -240,17 +240,44 @@ WorkspaceService → FileScanner → FileFilter
 
 ---
 
+## ✅ Phase 6 — Assignment Discovery
+
+**Status:** Complete  
+**Completed:** 2026-10-09
+
+### Summary of Implementation:
+- **`ClassroomService` (`src/classroom/ClassroomService.ts`):**
+  - Implemented `listCourseWork(courseId, options)` querying `courses/{courseId}/courseWork`.
+  - Automatic pagination handling across `nextPageToken`.
+  - In-memory caching per course with 5-minute TTL and `forceRefresh` support.
+  - Implemented `listStudentSubmissions(courseId, courseWorkId)` querying `courses/{courseId}/courseWork/{courseWorkId}/studentSubmissions?userId=me` to fetch authentic submission states (`NEW`, `CREATED`, `TURNED_IN`, `RETURNED`, `RECLAIMED_BY_STUDENT`).
+  - Implemented `listAssignmentsWithSubmissions(courseId)` combining coursework with student submissions in a single cohesive model.
+  - Due date & time parsing with `ClassroomService.formatDueDate()` supporting full dates, times, missing dates, and calculating `dueStatus` (`NO_DUE_DATE`, `UPCOMING`, `DUE_TODAY`, `OVERDUE`).
+  - Submission status evaluation with `ClassroomService.computeSubmissionStatus()`, properly distinguishing Turned in, Turned in (Late), Returned, Reclaimed, and Missing (Overdue).
+- **`AssignmentPicker` (`src/ui/AssignmentPicker.ts`):**
+  - Interactive QuickPick displaying assignment title, formatted due date, actual submission status, points, and description snippet.
+  - Clear visual indicators (`$(check)`, `$(pass)`, `$(alert)`, `$(circle-large-outline)`).
+  - Search matching across title, due date, status, and description.
+- **Command Integration (`src/commands/selectAssignment.ts`):**
+  - Enforces Course ➔ Assignment hierarchy: prompts to select a course if none is currently selected.
+  - Progress reporting via `vscode.window.withProgress`.
+  - Updates `state.selectedCourseWorkId` and shows summary notification.
+- **Testing:**
+  - 10 unit tests in `test/suite/assignments.test.ts` covering coursework retrieval, pagination, caching, submission state correlation, due date formatting, overdue detection, and QuickPick UI formatting.
+  - Test suite now has **78 passing tests** with 0 failures.
+
+---
+
 ## ⏭️ Next Step
 
-**Start Phase 6 — Assignment Discovery**
+**Start Phase 7 — Submission Model**
 
 When resuming:
-1. Review Phase 6 specifications:
-   - Implement coursework retrieval for selected course.
-   - User workflow: Course ➔ Assignment.
-   - Show useful assignment info: Title, Due date/time, Submission status.
-   - Handle: No assignments, past assignments, missing due dates, drafts, returned work, already-submitted work, pagination.
-   - Use actual Classroom API data; do not invent assignment states.
+1. Review Phase 7 specifications:
+   - Understand the exact Google Classroom submission model.
+   - Implement internal abstraction `AssignmentSubmission` (courseId, courseworkId, submissionId, state).
+   - Locate/create the student's submission where supported.
+   - Determine current submission state, detect whether assignment is already submitted, whether resubmission is possible, and handle returned/turned-in states appropriately.
 2. Acceptance criteria:
    - TypeScript compiles cleanly (`npm run typecheck`).
    - Linter passes (`npm run lint`).
