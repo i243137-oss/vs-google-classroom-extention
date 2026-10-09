@@ -13,13 +13,13 @@ export async function viewStatusCommand(state: ExtensionState): Promise<void> {
   logger.info('View Submission Status command invoked.');
 
   if (!state.isAuthenticated) {
-    void vscode.window.showWarningMessage(
+    await vscode.window.showWarningMessage(
       'Classroom Submit: Please sign in first.',
     );
     return;
   }
 
-  void vscode.window.showInformationMessage(
+  await vscode.window.showInformationMessage(
     '📊 Classroom Submit: Submission status view will be implemented in Phase 7+.',
   );
 }

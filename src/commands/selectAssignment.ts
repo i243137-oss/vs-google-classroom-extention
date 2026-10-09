@@ -13,20 +13,20 @@ export async function selectAssignmentCommand(state: ExtensionState): Promise<vo
   logger.info('Select Assignment command invoked.');
 
   if (!state.isAuthenticated) {
-    void vscode.window.showWarningMessage(
+    await vscode.window.showWarningMessage(
       'Classroom Submit: Please sign in first.',
     );
     return;
   }
 
   if (!state.selectedCourseId) {
-    void vscode.window.showWarningMessage(
+    await vscode.window.showWarningMessage(
       'Classroom Submit: Please select a course first.',
     );
     return;
   }
 
-  void vscode.window.showInformationMessage(
+  await vscode.window.showInformationMessage(
     '📝 Classroom Submit: Assignment selection will be implemented in Phase 6.',
   );
 }

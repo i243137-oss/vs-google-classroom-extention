@@ -34,7 +34,7 @@ export async function submitAssignmentCommand(state: ExtensionState): Promise<vo
     const config = state.getConfiguration();
     const workspaceService = new WorkspaceService();
 
-    let analysis = await vscode.window.withProgress(
+    const analysis = await vscode.window.withProgress(
       {
         location: vscode.ProgressLocation.Notification,
         title: 'Classroom Submit',
@@ -55,12 +55,12 @@ export async function submitAssignmentCommand(state: ExtensionState): Promise<vo
     const selectionResult = await filePicker.promptFileSelection(analysis);
 
     if (!selectionResult) {
-      void vscode.window.showInformationMessage('Classroom Submit: File selection cancelled.');
+      await vscode.window.showInformationMessage('Classroom Submit: File selection cancelled.');
       return;
     }
 
     if (selectionResult.totalFiles === 0) {
-      void vscode.window.showWarningMessage('Classroom Submit: No files selected for submission.');
+      await vscode.window.showWarningMessage('Classroom Submit: No files selected for submission.');
       return;
     }
 
@@ -73,7 +73,7 @@ export async function submitAssignmentCommand(state: ExtensionState): Promise<vo
 
     logger.info(summaryMsg.replace(/\n/g, ' | '));
 
-    void vscode.window.showInformationMessage(
+    await vscode.window.showInformationMessage(
       `✓ Files selected: ${selectionResult.totalFiles} files (${selectionResult.formattedSize}) ready. ` +
       `(Google Drive upload and Classroom submission will be integrated in subsequent phases).`,
     );
@@ -82,19 +82,18 @@ export async function submitAssignmentCommand(state: ExtensionState): Promise<vo
 
     if (error instanceof WorkspaceError) {
       if (error.code === 'NO_WORKSPACE') {
-        void vscode.window.showErrorMessage(
+        const sel = await vscode.window.showErrorMessage(
           'Classroom Submit: ' + error.message,
           'Open Folder',
-        ).then((sel) => {
-          if (sel === 'Open Folder') {
-            void vscode.commands.executeCommand('vscode.openFolder');
-          }
-        });
+        );
+        if (sel === 'Open Folder') {
+          await vscode.commands.executeCommand('vscode.openFolder');
+        }
       } else if (error.code !== 'CANCELLED') {
-        void vscode.window.showErrorMessage(`Classroom Submit: ${error.message}`);
+        await vscode.window.showErrorMessage(`Classroom Submit: ${error.message}`);
       }
     } else {
-      void vscode.window.showErrorMessage(
+      await vscode.window.showErrorMessage(
         'Submission failed. Check the Classroom Submit output channel for details.',
       );
     }

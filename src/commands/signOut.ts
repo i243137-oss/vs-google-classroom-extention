@@ -14,7 +14,7 @@ export async function signOutCommand(state: ExtensionState): Promise<void> {
 
   try {
     if (!state.isAuthenticated) {
-      void vscode.window.showInformationMessage(
+      await vscode.window.showInformationMessage(
         'Classroom Submit: You are not currently signed in.',
       );
       return;
@@ -25,13 +25,13 @@ export async function signOutCommand(state: ExtensionState): Promise<void> {
     state.selectedCourseId = undefined;
     state.selectedCourseWorkId = undefined;
 
-    void vscode.window.showInformationMessage(
+    await vscode.window.showInformationMessage(
       '✓ Classroom Submit: Signed out successfully. ' +
       '(Phase 4 will revoke Google tokens.)',
     );
   } catch (error) {
     logger.error('Sign Out command failed', error);
-    void vscode.window.showErrorMessage(
+    await vscode.window.showErrorMessage(
       'Sign Out failed. Check the Classroom Submit output channel for details.',
     );
   }

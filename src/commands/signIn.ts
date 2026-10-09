@@ -19,31 +19,30 @@ export async function signInCommand(state: ExtensionState): Promise<void> {
     const config = state.getConfiguration();
 
     if (!config.clientId || !config.clientSecret) {
-      void vscode.window.showWarningMessage(
+      const selection = await vscode.window.showWarningMessage(
         'Classroom Submit: OAuth credentials not configured. ' +
         'Please set classroomSubmit.clientId and classroomSubmit.clientSecret in VS Code settings.',
         'Open Settings',
-      ).then((selection) => {
-        if (selection === 'Open Settings') {
-          void vscode.commands.executeCommand(
-            'workbench.action.openSettings',
-            'classroomSubmit',
-          );
-        }
-      });
+      );
+      if (selection === 'Open Settings') {
+        await vscode.commands.executeCommand(
+          'workbench.action.openSettings',
+          'classroomSubmit',
+        );
+      }
       return;
     }
 
-    void vscode.window.showInformationMessage(
+    await vscode.window.showInformationMessage(
       '🔐 Classroom Submit: Google Sign In will be implemented in Phase 4. ' +
       'The extension skeleton is working correctly.',
     );
   } catch (error) {
     logger.error('Sign In command failed', error);
     if (error instanceof AuthenticationError) {
-      void vscode.window.showErrorMessage(`Sign In failed: ${error.message}`);
+      await vscode.window.showErrorMessage(`Sign In failed: ${error.message}`);
     } else {
-      void vscode.window.showErrorMessage(
+      await vscode.window.showErrorMessage(
         'Sign In failed. Check the Classroom Submit output channel for details.',
       );
     }

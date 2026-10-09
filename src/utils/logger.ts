@@ -6,6 +6,8 @@
  *
  * Uses VS Code's OutputChannel for structured, user-inspectable logs.
  */
+import * as vscode from 'vscode';
+
 interface OutputChannelLike {
   appendLine(value: string): void;
   show(): void;
@@ -18,17 +20,13 @@ export class Logger {
 
   private constructor() {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const vscode = require('vscode') as typeof import('vscode');
-      this.outputChannel = vscode.window.createOutputChannel('Classroom Submit', {
-        log: true,
-      });
+      this.outputChannel = vscode.window.createOutputChannel('Classroom Submit');
     } catch {
       // Fallback for standalone unit test environments where VS Code host is not present
       this.outputChannel = {
-        appendLine: () => {},
-        show: () => {},
-        dispose: () => {},
+        appendLine: (): void => {},
+        show: (): void => {},
+        dispose: (): void => {},
       };
     }
   }
@@ -63,10 +61,16 @@ export class Logger {
     if (!error) {
       return undefined;
     }
-    const raw = error instanceof Error ? error.message : String(error);
+    const raw =
+      error instanceof Error
+        ? error.message
+        : typeof error === 'string'
+          ? error
+          : JSON.stringify(error);
     // Strip anything that looks like a Bearer token or long base64 string
-    return raw.replace(/Bearer [A-Za-z0-9\-._~+/]+=*/g, 'Bearer [REDACTED]')
-              .replace(/[A-Za-z0-9]{40,}/g, '[REDACTED]');
+    return raw
+      .replace(/Bearer [A-Za-z0-9\-._~+/]+=*/g, 'Bearer [REDACTED]')
+      .replace(/[A-Za-z0-9]{40,}/g, '[REDACTED]');
   }
 
   public show(): void {

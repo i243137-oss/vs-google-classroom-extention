@@ -13,13 +13,13 @@ export async function selectCourseCommand(state: ExtensionState): Promise<void> 
   logger.info('Select Course command invoked.');
 
   if (!state.isAuthenticated) {
-    void vscode.window.showWarningMessage(
+    await vscode.window.showWarningMessage(
       'Classroom Submit: Please sign in first.',
     );
     return;
   }
 
-  void vscode.window.showInformationMessage(
+  await vscode.window.showInformationMessage(
     '📋 Classroom Submit: Course selection will be implemented in Phase 5.',
   );
 }
