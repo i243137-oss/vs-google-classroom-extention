@@ -21,6 +21,7 @@ export async function signOutCommand(state: ExtensionState): Promise<void> {
     }
 
     await state.authService.signOut();
+    state.classroomService.clearCache();
 
     state.isAuthenticated = false;
     state.selectedCourseId = undefined;

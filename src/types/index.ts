@@ -17,11 +17,12 @@ export interface UserInfo {
 export interface Course {
   id: string;
   name: string;
-  section?: string;
-  descriptionHeading?: string;
-  enrollmentCode?: string;
-  courseState: 'ACTIVE' | 'ARCHIVED' | 'PROVISIONED' | 'DECLINED' | 'SUSPENDED';
-  alternateLink: string;
+  section?: string | undefined;
+  descriptionHeading?: string | undefined;
+  room?: string | undefined;
+  enrollmentCode?: string | undefined;
+  courseState?: 'ACTIVE' | 'ARCHIVED' | 'PROVISIONED' | 'DECLINED' | 'SUSPENDED' | undefined;
+  alternateLink?: string | undefined;
 }
 
 export interface CourseWork {

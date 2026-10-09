@@ -16,7 +16,7 @@
 | 2 | Workspace & File Discovery | ✅ Complete |
 | 3 | File Selection UI | ✅ Complete |
 | 4 | Google OAuth Authentication | ✅ Complete |
-| 5 | Google Classroom — Courses | ⏳ Not Started |
+| 5 | Google Classroom — Courses | ✅ Complete |
 | 6 | Assignment Discovery | ⏳ Not Started |
 | 7 | Submission Model | ⏳ Not Started |
 | 8 | Google Drive File Upload | ⏳ Not Started |
@@ -213,16 +213,44 @@ WorkspaceService → FileScanner → FileFilter
 
 ---
 
+## ✅ Phase 5 — Google Classroom Courses
+
+**Status:** Complete  
+**Completed:** 2026-10-09
+
+### Summary of Implementation:
+- **`ClassroomService` (`src/classroom/ClassroomService.ts`):**
+  - Authenticated calls to Google Classroom API (`https://classroom.googleapis.com/v1/courses`).
+  - Implements `listCourses(options)` and `getCourse(courseId)`.
+  - Pagination: Automatically loops through `nextPageToken` to collect all paginated courses.
+  - In-memory caching with 5-minute TTL to reduce redundant API calls, with `forceRefresh` support.
+  - Safe state filtering: Defaults to `ACTIVE` courses, handles archived and provisioned courses.
+  - Granular error mapping via `friendlyHttpError` (HTTP 401, 403, 404, 500, network failure).
+  - Cache invalidation on `signOut`.
+- **`CoursePicker` (`src/ui/CoursePicker.ts`):**
+  - Interactive VS Code QuickPick displaying course names, section, subject, room, and visual status icons (`$(mortar-board)`, `$(archive)`).
+  - Friendly handling for empty course lists with direct link to Google Classroom in browser.
+  - Keyboard-friendly search matching across name, section, and subject details.
+- **Command Integration (`src/commands/selectCourse.ts`):**
+  - Integrated with VS Code notification progress (`withProgress`).
+  - Sets `state.selectedCourseId` and resets assignment selection for consistency.
+- **Testing:**
+  - 12 comprehensive unit tests in `test/suite/courses.test.ts` covering authentication headers, pagination, caching TTL, force-refresh, empty lists, error mappings (403, 404, network error), and QuickPick item formatting.
+  - Test suite now has **68 passing tests** with 0 failures.
+
+---
+
 ## ⏭️ Next Step
 
-**Start Phase 5 — Google Classroom Courses**
+**Start Phase 6 — Assignment Discovery**
 
 When resuming:
-1. Review Phase 5 specifications:
-   - Implement `ClassroomService` (`listCourses()`, `getCourse()`).
-   - Show courses through VS Code `QuickPick`.
-   - Handle empty course list, archived courses, inaccessible courses, API errors, and pagination.
-   - Do not hardcode course names; cache data safely.
+1. Review Phase 6 specifications:
+   - Implement coursework retrieval for selected course.
+   - User workflow: Course ➔ Assignment.
+   - Show useful assignment info: Title, Due date/time, Submission status.
+   - Handle: No assignments, past assignments, missing due dates, drafts, returned work, already-submitted work, pagination.
+   - Use actual Classroom API data; do not invent assignment states.
 2. Acceptance criteria:
    - TypeScript compiles cleanly (`npm run typecheck`).
    - Linter passes (`npm run lint`).
