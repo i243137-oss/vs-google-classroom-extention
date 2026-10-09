@@ -13,6 +13,8 @@ export async function viewStatusCommand(state: ExtensionState): Promise<void> {
   const logger = Logger.getInstance();
   logger.info('View Submission Status command invoked.');
 
+  let submissionLink: string | undefined;
+
   try {
     // 1. Verify authentication
     const isAuthed = await state.authService.isAuthenticated();
@@ -76,6 +78,8 @@ export async function viewStatusCommand(state: ExtensionState): Promise<void> {
         return { submission: sub, course: crs, coursework: cw };
       },
     );
+
+    submissionLink = submission.alternateLink;
 
     const stateInfo = state.submissionService.determineSubmissionState(
       submission.state,
@@ -187,6 +191,17 @@ export async function viewStatusCommand(state: ExtensionState): Promise<void> {
     logger.error('View Submission Status command failed', error);
 
     if (error instanceof SubmissionError) {
+      if (error.code === 'PROJECT_PERMISSION_DENIED') {
+        const choice = await vscode.window.showInformationMessage(
+          `Google Classroom Policy: This assignment was created via the Google Classroom web portal. Google requires turning in directly in Google Classroom.`,
+          'Open in Classroom',
+          'OK',
+        );
+        if (choice === 'Open in Classroom' && submissionLink) {
+          void vscode.env.openExternal(vscode.Uri.parse(submissionLink));
+        }
+        return;
+      }
       await vscode.window.showErrorMessage(`Submission Error: ${error.message}`);
     } else if (error instanceof AuthenticationError) {
       await vscode.window.showErrorMessage(`Authentication Error: ${error.message}`);

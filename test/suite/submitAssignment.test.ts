@@ -297,4 +297,161 @@ suite('Phase 11 — Complete Submission Command Pipeline', () => {
     assert.ok(assignmentTurnedIn, 'Should turn in submission to Google Classroom');
     assert.ok(successMessageShown, 'Should present success completion message');
   });
+
+  test('falls back to Drive-ready guided completion when coursework has associatedWithDeveloper: false', async () => {
+    mockState.authService.isAuthenticated = async () => true;
+    mockState.selectedCourseId = 'crs-pipeline-1';
+    mockState.selectedCourseWorkId = 'cw-pipeline-1';
+
+    mockState.classroomService.getCourse = async () => sampleCourse;
+    mockState.classroomService.getCourseWork = async () => ({
+      ...sampleCourseWork,
+      associatedWithDeveloper: false,
+    });
+
+    const createdSub: AssignmentSubmission = {
+      courseId: 'crs-pipeline-1',
+      courseworkId: 'cw-pipeline-1',
+      submissionId: 'sub-new-2',
+      state: 'CREATED',
+      isSubmitted: false,
+      canSubmit: true,
+      canReclaim: false,
+      isResubmission: false,
+      associatedWithDeveloper: false,
+    };
+
+    mockState.submissionService.getStudentSubmission = async () => createdSub;
+
+    let folderCreated = false;
+    let batchUploaded = false;
+    let guidedMessageShown = false;
+
+    WorkspaceService.prototype.analyzeWorkspace = async () => ({
+      rootPath: 'C:/project',
+      folderName: 'project',
+      allFiles: [],
+      includedFiles: [],
+      excludedFiles: [],
+      totalIncludedBytes: 100,
+      oversizedFileCount: 0,
+    });
+
+    FilePicker.prototype.promptFileSelection = async () => ({
+      selectedFiles: [
+        {
+          relativePath: 'main.py',
+          absolutePath: 'C:/project/main.py',
+          size: 100,
+          isDirectory: false,
+        },
+      ],
+      totalBytes: 100,
+      totalFiles: 1,
+      excludedCount: 0,
+      formattedSize: '100 B',
+    });
+
+    mockState.driveService.getOrCreateClassroomFolder = async () => {
+      folderCreated = true;
+      return { id: 'folder-drive-456', name: 'Problem Set 1' };
+    };
+
+    mockState.driveService.uploadBatch = async () => {
+      batchUploaded = true;
+      return [{ id: 'file-py-1', name: 'main.py', mimeType: 'text/x-python' }];
+    };
+
+    vscode.window.showInformationMessage = async (msg: string) => {
+      if (msg.includes('Submit to Google Classroom?')) {
+        return 'Submit Now';
+      }
+      if (msg.includes('Google Classroom Policy') || msg.includes('Your files are ready in Drive')) {
+        guidedMessageShown = true;
+      }
+      return undefined;
+    };
+
+    await submitAssignmentCommand(mockState);
+
+    assert.ok(folderCreated, 'Should create Drive folder hierarchy');
+    assert.ok(batchUploaded, 'Should upload files to Google Drive');
+    assert.ok(guidedMessageShown, 'Should show guided completion message directing student to Classroom web portal');
+  });
+
+  test('falls back to Drive-ready guided completion when attachDriveFiles throws PROJECT_PERMISSION_DENIED', async () => {
+    mockState.authService.isAuthenticated = async () => true;
+    mockState.selectedCourseId = 'crs-pipeline-1';
+    mockState.selectedCourseWorkId = 'cw-pipeline-1';
+
+    mockState.classroomService.getCourse = async () => sampleCourse;
+    mockState.classroomService.getCourseWork = async () => sampleCourseWork;
+
+    const createdSub: AssignmentSubmission = {
+      courseId: 'crs-pipeline-1',
+      courseworkId: 'cw-pipeline-1',
+      submissionId: 'sub-new-3',
+      state: 'CREATED',
+      isSubmitted: false,
+      canSubmit: true,
+      canReclaim: false,
+      isResubmission: false,
+    };
+
+    mockState.submissionService.getStudentSubmission = async () => createdSub;
+
+    WorkspaceService.prototype.analyzeWorkspace = async () => ({
+      rootPath: 'C:/project',
+      folderName: 'project',
+      allFiles: [],
+      includedFiles: [],
+      excludedFiles: [],
+      totalIncludedBytes: 100,
+      oversizedFileCount: 0,
+    });
+
+    FilePicker.prototype.promptFileSelection = async () => ({
+      selectedFiles: [
+        {
+          relativePath: 'solution.ts',
+          absolutePath: 'C:/project/solution.ts',
+          size: 100,
+          isDirectory: false,
+        },
+      ],
+      totalBytes: 100,
+      totalFiles: 1,
+      excludedCount: 0,
+      formattedSize: '100 B',
+    });
+
+    mockState.driveService.getOrCreateClassroomFolder = async () => ({
+      id: 'folder-drive-789',
+      name: 'Problem Set 1',
+    });
+
+    mockState.driveService.uploadBatch = async () => [
+      { id: 'file-ts-1', name: 'solution.ts', mimeType: 'application/typescript' },
+    ];
+
+    const { SubmissionError } = await import('../../src/errors/errors.js');
+    mockState.submissionService.attachDriveFiles = async () => {
+      throw new SubmissionError('Denied by developer policy', 'PROJECT_PERMISSION_DENIED');
+    };
+
+    let guidedMessageShown = false;
+    vscode.window.showInformationMessage = async (msg: string) => {
+      if (msg.includes('Submit to Google Classroom?')) {
+        return 'Submit Now';
+      }
+      if (msg.includes('Google Classroom Policy') || msg.includes('Your files are ready in Drive')) {
+        guidedMessageShown = true;
+      }
+      return undefined;
+    };
+
+    await submitAssignmentCommand(mockState);
+
+    assert.ok(guidedMessageShown, 'Should catch PROJECT_PERMISSION_DENIED and present Drive-ready completion guidance');
+  });
 });

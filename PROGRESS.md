@@ -393,6 +393,16 @@ WorkspaceService → FileScanner → FileFilter
 - **Automatic Resumable Upload Fallback (`src/drive/DriveService.ts`):** Added automatic fallback in `uploadFile` so any network failure in multipart uploads immediately retries via Google Drive's chunked resumable upload protocol.
 - **Enhanced Diagnostics (`src/drive/DriveService.ts` & `src/utils/logger.ts`):** Preserved and sanitized underlying `err.cause` (e.g. `ECONNRESET`, `UND_ERR_SOCKET`) in all error messages and OutputChannel logs.
 
+### Runtime Fix — Google Classroom Developer Project Ownership Policy
+- **Google Classroom API Restriction:** Google Classroom enforces that only the Developer Console project that created a coursework item can programmatically call `modifyAttachments` and `turnIn`. For coursework created manually by teachers in the Classroom web UI, Google returns HTTP 403 `@ProjectPermissionDenied`.
+- **Guided Fallback Architecture (`src/commands/submitAssignment.ts`):**
+  - Files are safely uploaded to the student's Google Drive inside `Classroom Submit / <Course> / <Assignment>`.
+  - When coursework has `associatedWithDeveloper: false` or returns `PROJECT_PERMISSION_DENIED`, the extension gracefully detects this, avoids failing with a raw error, and provides a clear success guidance modal:
+    `✓ Uploaded X file(s) to Google Drive in folder "Course / Assignment".`
+    `ℹ️ Google Classroom Policy: Assignments created by teachers in the Classroom portal must be turned in directly in Google Classroom.`
+  - Provides instant one-click actions: **"Open in Classroom"** and **"View in Drive"**.
+- **Testing:** Added 3 tests (1 in `submission.test.ts`, 2 in `submitAssignment.test.ts`). Test suite now has **123 passing tests** across 9 test suites with 0 failures.
+
 ---
 
 ## ⏭️ Next Step

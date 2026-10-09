@@ -415,5 +415,26 @@ suite('Phase 7 — Submission Model & Reclaim Flow', () => {
         (err: unknown) => err instanceof SubmissionError && err.code === 'ALREADY_TURNED_IN',
       );
     });
+
+    test('throws PROJECT_PERMISSION_DENIED when API rejects with ProjectPermissionDenied', async () => {
+      globalThis.fetch = async () =>
+        ({
+          ok: false,
+          status: 403,
+          statusText: 'Forbidden',
+          json: async () => ({
+            error: {
+              message:
+                '@ProjectPermissionDenied The Developer Console project is not permitted to make this request.',
+            },
+          }),
+        }) as unknown as Response;
+
+      await assert.rejects(
+        async () => submissionService.turnInSubmission('crs-1', 'cw-1', 'sub-1'),
+        (err: unknown) =>
+          err instanceof SubmissionError && err.code === 'PROJECT_PERMISSION_DENIED',
+      );
+    });
   });
 });
