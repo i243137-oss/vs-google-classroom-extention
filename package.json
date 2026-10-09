@@ -53,6 +53,11 @@
         "command": "classroomSubmit.viewStatus",
         "title": "View Submission Status",
         "category": "Classroom"
+      },
+      {
+        "command": "classroomSubmit.configureCredentials",
+        "title": "Configure Credentials",
+        "category": "Classroom"
       }
     ],
     "configuration": {
@@ -121,6 +126,11 @@
           "type": "string",
           "default": "",
           "description": "Google OAuth 2.0 Client Secret from your Google Cloud Console project."
+        },
+        "classroomSubmit.redirectUri": {
+          "type": "string",
+          "default": "http://localhost:5000/auth/google/callback",
+          "description": "Google OAuth 2.0 authorized redirect URI configured in Google Cloud Console."
         }
       }
     }

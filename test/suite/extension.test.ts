@@ -64,6 +64,14 @@ suite('Phase 1 — Extension Skeleton', () => {
     );
   });
 
+  test('classroomSubmit.configureCredentials command should be registered', async () => {
+    const commands = await vscode.commands.getCommands(true);
+    assert.ok(
+      commands.includes('classroomSubmit.configureCredentials'),
+      'classroomSubmit.configureCredentials is not registered',
+    );
+  });
+
   test('signOut command should handle unauthenticated state gracefully', async () => {
     // Should not throw when called while not authenticated
     await assert.doesNotReject(

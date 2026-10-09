@@ -15,7 +15,7 @@
 | 1 | VS Code Extension Skeleton | ✅ Complete |
 | 2 | Workspace & File Discovery | ✅ Complete |
 | 3 | File Selection UI | ✅ Complete |
-| 4 | Google OAuth Authentication | ⏳ Not Started |
+| 4 | Google OAuth Authentication | ✅ Complete |
 | 5 | Google Classroom — Courses | ⏳ Not Started |
 | 6 | Assignment Discovery | ⏳ Not Started |
 | 7 | Submission Model | ⏳ Not Started |
@@ -183,22 +183,51 @@ WorkspaceService → FileScanner → FileFilter
 
 ---
 
+## ✅ Phase 4 — Google Cloud / OAuth Authentication
+
+**Status:** Complete  
+**Completed:** 2026-10-09
+
+### Summary of Implementation:
+- **`GoogleAuthServiceImpl` (`src/auth/GoogleAuthService.ts`):**
+  - Full OAuth 2.0 Authorization Code flow with PKCE (RFC 7636).
+  - Cryptographically secure `code_verifier` (base64url, 43+ chars) and `code_challenge` (S256).
+  - CSRF protection via random 32-character hexadecimal `state` validation.
+  - Temporary loopback HTTP server listening on configured redirect port (default `5000`, path `/auth/google/callback`).
+  - Seamless browser authorization launch with `vscode.env.openExternal`.
+  - Secure token storage using VS Code's encrypted `SecretStorage` (`classroomSubmit.googleAuthTokens`).
+  - Strict token secrecy: access tokens, refresh tokens, client secrets, and authorization codes are NEVER logged.
+  - Transparent token expiration detection and automatic token refresh via Google's token endpoint.
+  - Revocation support on sign out via `https://oauth2.googleapis.com/revoke`.
+  - Google user profile retrieval (`getUserInfo`) via Google UserInfo API.
+- **Commands & Configuration:**
+  - Interactive `classroomSubmit.configureCredentials` command allowing users to securely enter Client ID and Client Secret directly in VS Code.
+  - Integrated `signInCommand` with progress notification and credential validation.
+  - Updated `signOutCommand` with token revocation and SecretStorage cleanup.
+  - Added `classroomSubmit.redirectUri` setting to `package.json`.
+- **Documentation:**
+  - Complete, step-by-step setup guide created in `docs/google-cloud-setup.md` detailing GCP project creation, API enablement, consent screen configuration, redirect URIs, and scopes.
+- **Testing:**
+  - 17 unit tests in `test/suite/auth.test.ts` covering PKCE generation, state uniqueness, authorization URL format, SecretStorage persistence, expiry detection, automatic token refresh, revocation cleanup, and configuration validation.
+  - Test suite now has **56 passing tests** with 0 failures.
+
+---
+
 ## ⏭️ Next Step
 
-**Start Phase 4 — Google Cloud / OAuth Authentication**
+**Start Phase 5 — Google Classroom Courses**
 
 When resuming:
-1. Read this PROGRESS.md file first.
-2. Review Phase 4 specifications in `VS Code Extension — Google Classroom Direct Submission.md`:
-   - Google OAuth 2.0 implementation with Authorization Code + PKCE flow.
-   - Minimal required scopes (`classroom.courses.readonly`, `classroom.coursework.me.readonly`, `drive.file`, etc.).
-   - Secure token storage in `vscode.SecretStorage` (never in settings, .env, or plain files; never logged).
-   - Sign in, sign out, automatic token refresh, token expiry handling.
-   - Setup documentation in `docs/google-cloud-setup.md`.
-3. Acceptance criteria:
+1. Review Phase 5 specifications:
+   - Implement `ClassroomService` (`listCourses()`, `getCourse()`).
+   - Show courses through VS Code `QuickPick`.
+   - Handle empty course list, archived courses, inaccessible courses, API errors, and pagination.
+   - Do not hardcode course names; cache data safely.
+2. Acceptance criteria:
    - TypeScript compiles cleanly (`npm run typecheck`).
+   - Linter passes (`npm run lint`).
    - `npm test` passes.
-   - `npm run compile:prod` succeeds.
+   - Production bundle builds (`npm run compile:prod`).
 
 ---
 

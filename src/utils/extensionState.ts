@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { ExtensionConfiguration } from '../types/index.js';
+import { GoogleAuthService, GoogleAuthServiceImpl } from '../auth/GoogleAuthService.js';
 
 /**
  * Shared mutable state for the extension lifetime.
@@ -10,6 +11,7 @@ import { ExtensionConfiguration } from '../types/index.js';
  */
 export class ExtensionState {
   public readonly context: vscode.ExtensionContext;
+  public readonly authService: GoogleAuthService;
 
   /** True once the user has successfully authenticated. */
   public isAuthenticated: boolean = false;
@@ -22,6 +24,17 @@ export class ExtensionState {
 
   constructor(context: vscode.ExtensionContext) {
     this.context = context;
+    this.authService = new GoogleAuthServiceImpl(
+      context.secrets,
+      () => {
+        const cfg = this.getConfiguration();
+        return {
+          clientId: cfg.clientId,
+          clientSecret: cfg.clientSecret,
+          redirectUri: cfg.redirectUri,
+        };
+      },
+    );
   }
 
   /** Read the current extension configuration from VS Code settings. */
@@ -41,6 +54,7 @@ export class ExtensionState {
       showNotifications: cfg.get<boolean>('showNotifications', true),
       clientId: cfg.get<string>('clientId', ''),
       clientSecret: cfg.get<string>('clientSecret', ''),
+      redirectUri: cfg.get<string>('redirectUri', 'http://localhost:5000/auth/google/callback'),
     };
   }
 }

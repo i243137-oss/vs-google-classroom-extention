@@ -6,6 +6,7 @@ import { submitAssignmentCommand } from './submitAssignment.js';
 import { selectCourseCommand } from './selectCourse.js';
 import { selectAssignmentCommand } from './selectAssignment.js';
 import { viewStatusCommand } from './viewStatus.js';
+import { configureCredentialsCommand } from './configureCredentials.js';
 
 /**
  * Registers all extension commands and returns their Disposables.
@@ -35,6 +36,9 @@ export function registerCommands(
     ),
     vscode.commands.registerCommand('classroomSubmit.viewStatus', () =>
       viewStatusCommand(state),
+    ),
+    vscode.commands.registerCommand('classroomSubmit.configureCredentials', () =>
+      configureCredentialsCommand(state),
     ),
   ];
 }

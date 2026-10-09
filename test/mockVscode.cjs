@@ -73,7 +73,20 @@ Module.prototype.require = function (id) {
           'classroomSubmit.selectCourse',
           'classroomSubmit.selectAssignment',
           'classroomSubmit.viewStatus',
+          'classroomSubmit.configureCredentials',
         ],
+      },
+      Uri: {
+        parse: (uriStr) => ({ toString: () => uriStr, fsPath: uriStr }),
+        file: (filePath) => ({ fsPath: filePath, toString: () => `file://${filePath}` }),
+      },
+      env: {
+        openExternal: async () => true,
+      },
+      ConfigurationTarget: {
+        Global: 1,
+        Workspace: 2,
+        WorkspaceFolder: 3,
       },
       ProgressLocation: {
         Notification: 15,

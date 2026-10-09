@@ -97,4 +97,5 @@ export interface ExtensionConfiguration {
   showNotifications: boolean;
   clientId: string;
   clientSecret: string;
+  redirectUri: string;
 }
