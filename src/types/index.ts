@@ -62,6 +62,16 @@ export interface StudentSubmission {
   late?: boolean | undefined;
   alternateLink?: string | undefined;
   driveFiles?: DriveFileAttachment[] | undefined;
+  assignmentSubmission?: {
+    attachments?: Attachment[] | undefined;
+  } | undefined;
+}
+
+export interface Attachment {
+  driveFile?: DriveFileAttachment | undefined;
+  link?: { url: string; title?: string | undefined } | undefined;
+  form?: { formUrl: string; title?: string | undefined } | undefined;
+  id?: string | undefined;
 }
 
 export interface DriveFileAttachment {

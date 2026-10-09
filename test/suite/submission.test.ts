@@ -206,4 +206,121 @@ suite('Phase 7 — Submission Model & Reclaim Flow', () => {
       );
     });
   });
+
+  suite('Phase 9 — Attach Files to Classroom Submission', () => {
+    test('attachDriveFiles sends modifyAttachments POST with driveFile objects', async () => {
+      let capturedUrl = '';
+      let capturedMethod = '';
+      let capturedBody = '';
+
+      const returnedRaw: StudentSubmission = {
+        id: 'sub-xyz',
+        courseId: 'crs-1',
+        courseWorkId: 'cw-1',
+        state: 'CREATED',
+        assignmentSubmission: {
+          attachments: [
+            {
+              driveFile: {
+                id: 'drive-file-01',
+                title: 'solution.ts',
+                alternateLink: 'https://drive.google.com/file/01',
+              },
+            },
+            {
+              driveFile: {
+                id: 'drive-file-02',
+                title: 'report.pdf',
+                alternateLink: 'https://drive.google.com/file/02',
+              },
+            },
+          ],
+        },
+      };
+
+      globalThis.fetch = async (url: string | URL | Request, init?: RequestInit) => {
+        capturedUrl = String(url);
+        capturedMethod = init?.method || '';
+        capturedBody = String(init?.body || '');
+
+        return {
+          ok: true,
+          status: 200,
+          json: async () => returnedRaw,
+        } as unknown as Response;
+      };
+
+      const result = await submissionService.attachDriveFiles('crs-1', 'cw-1', 'sub-xyz', [
+        'drive-file-01',
+        'drive-file-02',
+      ]);
+
+      assert.ok(capturedUrl.includes('/courses/crs-1/courseWork/cw-1/studentSubmissions/sub-xyz:modifyAttachments'));
+      assert.strictEqual(capturedMethod, 'POST');
+      assert.ok(capturedBody.includes('drive-file-01'));
+      assert.ok(capturedBody.includes('drive-file-02'));
+      assert.strictEqual(result.attachments?.length, 2);
+      assert.strictEqual(result.attachments[0]?.id, 'drive-file-01');
+      assert.strictEqual(result.attachments[1]?.title, 'report.pdf');
+    });
+
+    test('attachDriveFiles throws INVALID_ARGUMENT when driveFileIds is empty', async () => {
+      await assert.rejects(
+        async () => submissionService.attachDriveFiles('crs-1', 'cw-1', 'sub-xyz', []),
+        (err: unknown) => err instanceof SubmissionError && err.code === 'INVALID_ARGUMENT',
+      );
+    });
+
+    test('modifyAttachments handles removeAttachmentIds', async () => {
+      let capturedBody = '';
+
+      globalThis.fetch = async (url: string | URL | Request, init?: RequestInit) => {
+        capturedBody = String(init?.body || '');
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            id: 'sub-xyz',
+            courseId: 'crs-1',
+            courseWorkId: 'cw-1',
+            state: 'CREATED',
+          }),
+        } as unknown as Response;
+      };
+
+      await submissionService.modifyAttachments('crs-1', 'cw-1', 'sub-xyz', {
+        removeAttachmentIds: ['old-att-123'],
+      });
+
+      assert.ok(capturedBody.includes('old-att-123'));
+    });
+
+    test('modifyAttachments throws INVALID_ARGUMENT when both add and remove are empty', async () => {
+      await assert.rejects(
+        async () => submissionService.modifyAttachments('crs-1', 'cw-1', 'sub-xyz', {}),
+        (err: unknown) => err instanceof SubmissionError && err.code === 'INVALID_ARGUMENT',
+      );
+    });
+
+    test('throws CANNOT_MODIFY_TURNED_IN when Classroom API rejects turned-in submission', async () => {
+      globalThis.fetch = async () =>
+        ({
+          ok: false,
+          status: 400,
+          statusText: 'Bad Request',
+          json: async () => ({
+            error: { message: 'Cannot modify attachments of a turned in submission.' },
+          }),
+        }) as unknown as Response;
+
+      await assert.rejects(
+        async () =>
+          submissionService.attachDriveFiles('crs-1', 'cw-1', 'sub-xyz', ['drive-file-01']),
+        (err: unknown) =>
+          err instanceof SubmissionError &&
+          err.code === 'CANNOT_MODIFY_TURNED_IN' &&
+          err.message.includes('reclaim'),
+      );
+    });
+  });
 });

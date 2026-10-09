@@ -96,6 +96,11 @@ export async function viewStatusCommand(state: ExtensionState): Promise<void> {
       messageLines.push(`Grade: ${submission.assignedGrade} pts`);
     }
 
+    if (submission.attachments && submission.attachments.length > 0) {
+      const count = submission.attachments.length;
+      messageLines.push(`Attachments: ${count} file${count > 1 ? 's' : ''} attached`);
+    }
+
     const buttons: string[] = [];
     if (submission.canReclaim) {
       buttons.push('Reclaim Submission');
