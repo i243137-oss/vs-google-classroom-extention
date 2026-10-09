@@ -83,7 +83,7 @@ Before generating credentials, you must configure the user consent screen:
      ```
      http://localhost:5000/auth/google/callback
      ```
-   - *(Optional)* Under **Authorized JavaScript origins**:
+   - _(Optional)_ Under **Authorized JavaScript origins**:
      ```
      http://localhost:5000
      ```
@@ -100,6 +100,7 @@ Before generating credentials, you must configure the user consent screen:
 You can configure your credentials using either of the two methods below:
 
 ### Method A: Using the Command Palette (Recommended)
+
 1. In VS Code, open the Command Palette (`Ctrl+Shift+P` on Windows/Linux, `Cmd+Shift+P` on macOS).
 2. Type and run:
    ```
@@ -110,6 +111,7 @@ You can configure your credentials using either of the two methods below:
 5. The extension will securely save your settings.
 
 ### Method B: Via VS Code Settings
+
 1. Open VS Code Settings (`Ctrl+,` or `File > Preferences > Settings`).
 2. Search for `Classroom Submit`.
 3. Set:
@@ -139,7 +141,9 @@ You can configure your credentials using either of the two methods below:
    ```
 
 To sign out at any time, run:
+
 ```
 Classroom: Sign Out
 ```
+
 This safely revokes your Google tokens and deletes them from VS Code's encrypted SecretStorage.

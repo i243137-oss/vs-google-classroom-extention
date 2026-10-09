@@ -65,3 +65,4 @@ export async function configureCredentialsCommand(state: ExtensionState): Promis
     await vscode.commands.executeCommand('classroomSubmit.signIn');
   }
 }
+
