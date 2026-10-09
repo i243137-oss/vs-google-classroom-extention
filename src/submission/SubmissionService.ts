@@ -1,5 +1,5 @@
-import { AssignmentSubmission, SubmissionStateInfo } from './types.js';
-import { StudentSubmission } from '../types/index.js';
+import { AssignmentSubmission, SubmissionStateInfo, ModifyAttachmentsOptions } from './types.js';
+import { StudentSubmission, DriveFileAttachment } from '../types/index.js';
 import { SubmissionError, friendlyHttpError } from '../errors/errors.js';
 import { Logger } from '../utils/logger.js';
 
@@ -9,12 +9,24 @@ export interface ISubmissionService {
   getStudentSubmission(courseId: string, courseworkId: string): Promise<AssignmentSubmission>;
   reclaimSubmission(courseId: string, courseworkId: string, submissionId: string): Promise<AssignmentSubmission>;
   determineSubmissionState(state: string, late?: boolean): SubmissionStateInfo;
+  attachDriveFiles(
+    courseId: string,
+    courseworkId: string,
+    submissionId: string,
+    driveFileIds: string[],
+  ): Promise<AssignmentSubmission>;
+  modifyAttachments(
+    courseId: string,
+    courseworkId: string,
+    submissionId: string,
+    options: ModifyAttachmentsOptions,
+  ): Promise<AssignmentSubmission>;
 }
 
 /**
  * SubmissionService
  *
- * Implements the Google Classroom student submission model abstraction.
+ * Implements the Google Classroom student submission model abstraction and attachment modifications.
  *
  * GOOGLE CLASSROOM API ARCHITECTURAL SPECIFICATION:
  * 1. Automatic Creation: Google Classroom auto-provisions a StudentSubmission
@@ -25,6 +37,8 @@ export interface ISubmissionService {
  *    files, the student must reclaim the submission first.
  * 3. Resubmission on RETURNED: Submissions returned by instructors can be
  *    directly resubmitted by adding files and calling turnIn.
+ * 4. modifyAttachments: Links Google Drive files to the submission record.
+ *    Google Classroom automatically grants the teacher access to attached Drive files.
  */
 export class SubmissionService implements ISubmissionService {
   private readonly getAccessToken: () => Promise<string>;
@@ -99,6 +113,86 @@ export class SubmissionService implements ISubmissionService {
   }
 
   /**
+   * Attaches one or more uploaded Google Drive files to the student submission.
+   */
+  public async attachDriveFiles(
+    courseId: string,
+    courseworkId: string,
+    submissionId: string,
+    driveFileIds: string[],
+  ): Promise<AssignmentSubmission> {
+    if (!driveFileIds || driveFileIds.length === 0) {
+      throw new SubmissionError('At least one Drive file ID is required to attach.', 'INVALID_ARGUMENT');
+    }
+
+    return this.modifyAttachments(courseId, courseworkId, submissionId, {
+      addDriveFileIds: driveFileIds,
+    });
+  }
+
+  /**
+   * Modifies attachments on a student submission (add Drive files and/or remove existing attachments).
+   * Calls the Google Classroom API studentSubmissions.modifyAttachments endpoint.
+   */
+  public async modifyAttachments(
+    courseId: string,
+    courseworkId: string,
+    submissionId: string,
+    options: ModifyAttachmentsOptions,
+  ): Promise<AssignmentSubmission> {
+    if (!courseId || !courseId.trim()) {
+      throw new SubmissionError('Course ID is required.', 'INVALID_ARGUMENT');
+    }
+    if (!courseworkId || !courseworkId.trim()) {
+      throw new SubmissionError('CourseWork ID is required.', 'INVALID_ARGUMENT');
+    }
+    if (!submissionId || !submissionId.trim()) {
+      throw new SubmissionError('Submission ID is required.', 'INVALID_ARGUMENT');
+    }
+
+    const hasAdd = Boolean(options.addDriveFileIds && options.addDriveFileIds.length > 0);
+    const hasRemove = Boolean(options.removeAttachmentIds && options.removeAttachmentIds.length > 0);
+
+    if (!hasAdd && !hasRemove) {
+      throw new SubmissionError(
+        'At least one attachment to add or remove must be provided.',
+        'INVALID_ARGUMENT',
+      );
+    }
+
+    this.logger.info(
+      `SubmissionService: Modifying attachments on submission ${submissionId} (add: ${options.addDriveFileIds?.length ?? 0}, remove: ${options.removeAttachmentIds?.length ?? 0})…`,
+    );
+
+    const payload: {
+      addAttachments?: Array<{ driveFile: { id: string } }> | undefined;
+      removeAttachmentIds?: string[] | undefined;
+    } = {};
+
+    if (hasAdd && options.addDriveFileIds) {
+      payload.addAttachments = options.addDriveFileIds.map((id) => ({
+        driveFile: { id },
+      }));
+    }
+
+    if (hasRemove && options.removeAttachmentIds) {
+      payload.removeAttachmentIds = options.removeAttachmentIds;
+    }
+
+    const url = `${CLASSROOM_API_BASE}/courses/${encodeURIComponent(courseId)}/courseWork/${encodeURIComponent(courseworkId)}/studentSubmissions/${encodeURIComponent(submissionId)}:modifyAttachments`;
+
+    const updatedRaw = await this.executeRequest<StudentSubmission>(url, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+
+    this.logger.info(
+      `SubmissionService: Attachments modified successfully on submission ${submissionId}.`,
+    );
+    return this.mapToAssignmentSubmission(courseId, courseworkId, updatedRaw);
+  }
+
+  /**
    * Computes state metadata from Google Classroom submission state strings.
    * Never invents non-existent states.
    */
@@ -162,6 +256,22 @@ export class SubmissionService implements ISubmissionService {
   ): AssignmentSubmission {
     const info = this.determineSubmissionState(raw.state, raw.late);
 
+    const attachments: DriveFileAttachment[] = [];
+    if (raw.assignmentSubmission?.attachments) {
+      for (const att of raw.assignmentSubmission.attachments) {
+        if (att.driveFile) {
+          attachments.push({
+            id: att.driveFile.id,
+            title: att.driveFile.title,
+            alternateLink: att.driveFile.alternateLink,
+            thumbnailUrl: att.driveFile.thumbnailUrl,
+          });
+        }
+      }
+    } else if (raw.driveFiles) {
+      attachments.push(...raw.driveFiles);
+    }
+
     return {
       courseId,
       courseworkId,
@@ -173,6 +283,7 @@ export class SubmissionService implements ISubmissionService {
       isResubmission: info.isResubmission,
       late: raw.late,
       alternateLink: raw.alternateLink,
+      attachments: attachments.length > 0 ? attachments : undefined,
     };
   }
 
@@ -215,6 +326,13 @@ export class SubmissionService implements ISubmissionService {
       }
 
       this.logger.error(`SubmissionService: HTTP ${res.status} error: ${details || res.statusText}`);
+
+      if (details.toLowerCase().includes('turned in') || details.toLowerCase().includes('turned_in')) {
+        throw new SubmissionError(
+          'Cannot modify attachments on a turned-in assignment. Please reclaim the assignment before submitting new files.',
+          'CANNOT_MODIFY_TURNED_IN',
+        );
+      }
 
       throw new SubmissionError(
         details ? `${friendlyMsg} (${details})` : friendlyMsg,

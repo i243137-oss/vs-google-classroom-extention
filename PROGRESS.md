@@ -20,7 +20,7 @@
 | 6 | Assignment Discovery | ✅ Complete |
 | 7 | Submission Model | ✅ Complete |
 | 8 | Google Drive File Upload | ✅ Complete |
-| 9 | Attach Files to Classroom Submission | ⏳ Not Started |
+| 9 | Attach Files to Classroom Submission | ✅ Complete |
 | 10 | Turn In / Submit | ⏳ Not Started |
 | 11 | Complete Submission Command | ⏳ Not Started |
 | 12 | Validation & Pre-submission Checks | ⏳ Not Started |
@@ -317,17 +317,39 @@ WorkspaceService → FileScanner → FileFilter
 
 ---
 
+## ✅ Phase 9 — Attach Files to Classroom Submission
+
+**Status:** Complete  
+**Completed:** 2026-10-09
+
+### Summary of Implementation:
+- **`SubmissionService.modifyAttachments` & `attachDriveFiles` (`src/submission/SubmissionService.ts`):**
+  - Implemented the Google Classroom API `studentSubmissions.modifyAttachments` endpoint (`courses/{courseId}/courseWork/{courseWorkId}/studentSubmissions/{id}:modifyAttachments`).
+  - Added support for `addDriveFileIds` and `removeAttachmentIds` payloads.
+  - Added convenient helper `attachDriveFiles(courseId, courseworkId, submissionId, driveFileIds)`.
+  - Maps API errors cleanly with proactive catch for `CANNOT_MODIFY_TURNED_IN` if attempting to modify attachments on turned-in submissions, directing students to reclaim first.
+- **Data Model Enhancements (`src/submission/types.ts` & `src/types/index.ts`):**
+  - Updated `AssignmentSubmission` to include normalized `attachments?: DriveFileAttachment[]`.
+  - Added `Attachment` interface for Google Classroom's `assignmentSubmission.attachments` schema.
+  - Automatically maps returned attachments into internal model.
+- **Status View Polish (`src/commands/viewStatus.ts`):**
+  - Updated status dialog to report total count of attached files currently linked to the submission.
+- **Testing:**
+  - Added 5 unit tests in `test/suite/submission.test.ts` verifying attachment modification payloads, argument validation, removing attachments, and turned-in rejection errors.
+  - Test suite now has **109 passing tests** across 8 test suites with 0 failures.
+
+---
+
 ## ⏭️ Next Step
 
-**Start Phase 9 — Attach Files to Classroom Submission**
+**Start Phase 10 — Turn In / Submit**
 
 When resuming:
-1. Review Phase 9 specifications:
-   - Link uploaded Drive files (`driveFiles`) to student submission record.
-   - Use Google Classroom API `studentSubmissions.modifyAttachments` endpoint.
-   - Build request body: `{ addAttachments: [{ driveFile: { id: fileId } }] }`.
-   - Handle permissions (Google Classroom automatically shares attached Drive files with course teachers).
-   - Handle errors when modifying attachments (e.g. if submission is in `TURNED_IN` state, guide student to reclaim).
+1. Review Phase 10 specifications:
+   - Implement `turnIn` method in `SubmissionService` (calling Google Classroom `studentSubmissions.turnIn` endpoint).
+   - Verify assignment state transitions to `TURNED_IN`.
+   - Handle late submission flag (`late: boolean`).
+   - Confirmation prompts to avoid accidental student turn-in.
 2. Acceptance criteria:
    - TypeScript compiles cleanly (`npm run typecheck`).
    - Linter passes (`npm run lint`).

@@ -1,3 +1,5 @@
+import { DriveFileAttachment } from '../types/index.js';
+
 /**
  * Internal submission abstraction matching Google Classroom's submission model.
  */
@@ -14,6 +16,7 @@ export interface AssignmentSubmission {
   alternateLink?: string | undefined;
   assignedGrade?: number | undefined;
   draftGrade?: number | undefined;
+  attachments?: DriveFileAttachment[] | undefined;
 }
 
 export interface SubmissionStateInfo {
@@ -24,4 +27,9 @@ export interface SubmissionStateInfo {
   canReclaim: boolean;
   isSubmitted: boolean;
   isResubmission: boolean;
+}
+
+export interface ModifyAttachmentsOptions {
+  addDriveFileIds?: string[] | undefined;
+  removeAttachmentIds?: string[] | undefined;
 }
