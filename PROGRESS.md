@@ -384,7 +384,14 @@ WorkspaceService → FileScanner → FileFilter
     8. **Completion Feedback:** Alerts user if submitted late vs on-time, with an interactive "Open in Classroom" browser link.
 - **Testing:**
   - Added 4 unit tests in `test/suite/submitAssignment.test.ts` verifying authentication guard, reclaim prompt for turned-in assignments, cancellation cleanly without side effects, and complete end-to-end pipeline execution.
-  - Test suite now has **117 passing tests** across 9 test suites with 0 failures.
+  - Added 3 unit tests in `test/suite/drive.test.ts` verifying RFC 2046 compliant multipart payload formatting (`\r\n--${boundary}--\r\n`), automatic fallback from multipart to resumable upload on network errors, and detailed error cause diagnostics extraction.
+  - Test suite now has **120 passing tests** across 9 test suites with 0 failures.
+
+### Runtime Hotfix — Google Drive Upload Network Resilience
+- **RFC 2046 Multipart Delimiter Compliance (`src/drive/DriveService.ts`):** Fixed closing delimiter termination by appending required CRLF (`\r\n--${boundary}--\r\n`) preventing Google API connection resets.
+- **WHATWG Fetch Body Compatibility (`src/drive/DriveService.ts`):** Converted raw Buffer to `Uint8Array` for standard `BodyInit` compatibility and removed explicit `Content-Length` header in multipart requests so undici sets it cleanly.
+- **Automatic Resumable Upload Fallback (`src/drive/DriveService.ts`):** Added automatic fallback in `uploadFile` so any network failure in multipart uploads immediately retries via Google Drive's chunked resumable upload protocol.
+- **Enhanced Diagnostics (`src/drive/DriveService.ts` & `src/utils/logger.ts`):** Preserved and sanitized underlying `err.cause` (e.g. `ECONNRESET`, `UND_ERR_SOCKET`) in all error messages and OutputChannel logs.
 
 ---
 

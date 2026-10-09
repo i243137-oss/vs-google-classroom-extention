@@ -32,6 +32,26 @@ export interface IDriveService {
   lookupMimeType(fileNameOrPath: string): string;
 }
 
+function formatNetworkError(err: unknown): string {
+  const baseMsg =
+    err instanceof Error ? err.message : typeof err === 'string' ? err : 'Unknown network error';
+  const cause = (err as { cause?: unknown })?.cause;
+  if (!cause) {
+    return baseMsg;
+  }
+  if (cause instanceof Error) {
+    return `${baseMsg} (${cause.name}: ${cause.message})`;
+  }
+  if (typeof cause === 'string') {
+    return `${baseMsg} (${cause})`;
+  }
+  try {
+    return `${baseMsg} (${JSON.stringify(cause)})`;
+  } catch {
+    return baseMsg;
+  }
+}
+
 /**
  * DriveService
  *
@@ -102,7 +122,17 @@ export class DriveService implements IDriveService {
     if (fileBuffer.length >= this.resumableThresholdBytes) {
       return this.uploadResumable(fileBuffer, targetName, mimeType, options);
     } else {
-      return this.uploadMultipart(fileBuffer, targetName, mimeType, options);
+      try {
+        return await this.uploadMultipart(fileBuffer, targetName, mimeType, options);
+      } catch (err) {
+        if (err instanceof DriveApiError && err.code === 'NETWORK_ERROR') {
+          this.logger.warn(
+            `DriveService: Multipart upload failed for "${targetName}" (${err.message}). Retrying with resumable upload protocol…`,
+          );
+          return await this.uploadResumable(fileBuffer, targetName, mimeType, options);
+        }
+        throw err;
+      }
     }
   }
 
@@ -247,7 +277,8 @@ export class DriveService implements IDriveService {
       `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n--${boundary}\r\nContent-Type: ${mimeType}\r\n\r\n`,
       'utf-8',
     );
-    const footerPart = Buffer.from(`\r\n--${boundary}--`, 'utf-8');
+    // RFC 2046: Closing boundary delimiter MUST end with CRLF: --{boundary}--\r\n
+    const footerPart = Buffer.from(`\r\n--${boundary}--\r\n`, 'utf-8');
     const body = Buffer.concat([headerPart, fileBuffer, footerPart]);
 
     const url = `${DRIVE_UPLOAD_BASE}/files?uploadType=multipart&fields=id,name,mimeType,webViewLink,webContentLink,size`;
@@ -255,19 +286,20 @@ export class DriveService implements IDriveService {
 
     let res: Response;
     try {
+      const uint8Body = new Uint8Array(body.buffer, body.byteOffset, body.byteLength);
       res = await fetch(url, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': `multipart/related; boundary=${boundary}`,
-          'Content-Length': String(body.length),
         },
-        body,
+        body: uint8Body,
       });
-    } catch (err) {
+    } catch (err: unknown) {
+      const detailMsg = formatNetworkError(err);
       this.logger.error(`DriveService: Multipart upload network failure for ${fileName}`, err);
       throw new DriveApiError(
-        `Network error during file upload: ${err instanceof Error ? err.message : String(err)}`,
+        `Network error during file upload: ${detailMsg}`,
         'NETWORK_ERROR',
       );
     }
@@ -314,10 +346,11 @@ export class DriveService implements IDriveService {
         },
         body: JSON.stringify(metadata),
       });
-    } catch (err) {
+    } catch (err: unknown) {
+      const detailMsg = formatNetworkError(err);
       this.logger.error(`DriveService: Resumable session init network error for ${fileName}`, err);
       throw new DriveApiError(
-        `Network error initiating resumable upload: ${err instanceof Error ? err.message : String(err)}`,
+        `Network error initiating resumable upload: ${detailMsg}`,
         'NETWORK_ERROR',
       );
     }
@@ -355,6 +388,7 @@ export class DriveService implements IDriveService {
       while (offset < totalBytes) {
         const end = Math.min(offset + CHUNK_SIZE, totalBytes);
         const chunk = fileBuffer.subarray(offset, end);
+        const uint8Chunk = new Uint8Array(chunk.buffer, chunk.byteOffset, chunk.byteLength);
 
         let chunkRes: Response;
         try {
@@ -364,11 +398,12 @@ export class DriveService implements IDriveService {
               'Content-Length': String(chunk.length),
               'Content-Range': `bytes ${offset}-${end - 1}/${totalBytes}`,
             },
-            body: chunk,
+            body: uint8Chunk,
           });
-        } catch (err) {
+        } catch (err: unknown) {
+          const detailMsg = formatNetworkError(err);
           throw new DriveApiError(
-            `Network error uploading chunk for ${fileName}: ${err instanceof Error ? err.message : String(err)}`,
+            `Network error uploading chunk for ${fileName}: ${detailMsg}`,
             'NETWORK_ERROR',
           );
         }
@@ -425,10 +460,11 @@ export class DriveService implements IDriveService {
           ...init?.headers,
         },
       });
-    } catch (err) {
+    } catch (err: unknown) {
+      const detailMsg = formatNetworkError(err);
       this.logger.error(`DriveService: Network failure reaching ${url}`, err);
       throw new DriveApiError(
-        `Network error communicating with Google Drive: ${err instanceof Error ? err.message : String(err)}`,
+        `Network error communicating with Google Drive: ${detailMsg}`,
         'NETWORK_ERROR',
       );
     }
