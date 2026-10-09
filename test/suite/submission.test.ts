@@ -323,4 +323,97 @@ suite('Phase 7 — Submission Model & Reclaim Flow', () => {
       );
     });
   });
+
+  suite('Phase 10 — Turn In / Submit', () => {
+    test('sends POST request to :turnIn endpoint and marks state as TURNED_IN', async () => {
+      let capturedUrl = '';
+      let capturedMethod = '';
+      let capturedAuth = '';
+
+      const returnedRaw: StudentSubmission = {
+        id: 'sub-turnin-1',
+        courseId: 'crs-1',
+        courseWorkId: 'cw-1',
+        state: 'TURNED_IN',
+        late: false,
+      };
+
+      globalThis.fetch = async (url: string | URL | Request, init?: RequestInit) => {
+        capturedUrl = String(url);
+        capturedMethod = init?.method || '';
+        capturedAuth = (init?.headers as Record<string, string>)?.Authorization || '';
+
+        return {
+          ok: true,
+          status: 200,
+          json: async () => returnedRaw,
+        } as unknown as Response;
+      };
+
+      const result = await submissionService.turnInSubmission('crs-1', 'cw-1', 'sub-turnin-1');
+
+      assert.ok(capturedUrl.includes('/courses/crs-1/courseWork/cw-1/studentSubmissions/sub-turnin-1:turnIn'));
+      assert.strictEqual(capturedMethod, 'POST');
+      assert.strictEqual(capturedAuth, `Bearer ${mockToken}`);
+      assert.strictEqual(result.state, 'TURNED_IN');
+      assert.strictEqual(result.isSubmitted, true);
+      assert.strictEqual(result.canSubmit, false);
+      assert.strictEqual(result.canReclaim, true);
+      assert.strictEqual(result.late, false);
+    });
+
+    test('handles late submissions with late: true flag', async () => {
+      globalThis.fetch = async () =>
+        ({
+          ok: true,
+          status: 200,
+          json: async () => ({
+            id: 'sub-turnin-late',
+            courseId: 'crs-1',
+            courseWorkId: 'cw-1',
+            state: 'TURNED_IN',
+            late: true,
+          }),
+        }) as unknown as Response;
+
+      const result = await submissionService.turnInSubmission('crs-1', 'cw-1', 'sub-turnin-late');
+
+      assert.strictEqual(result.state, 'TURNED_IN');
+      assert.strictEqual(result.late, true);
+      const stateInfo = submissionService.determineSubmissionState(result.state, result.late);
+      assert.strictEqual(stateInfo.label, 'Turned in (Late)');
+    });
+
+    test('throws INVALID_ARGUMENT when turnIn arguments are missing', async () => {
+      await assert.rejects(
+        async () => submissionService.turnInSubmission('', 'cw-1', 'sub-1'),
+        (err: unknown) => err instanceof SubmissionError && err.code === 'INVALID_ARGUMENT',
+      );
+      await assert.rejects(
+        async () => submissionService.turnInSubmission('crs-1', '', 'sub-1'),
+        (err: unknown) => err instanceof SubmissionError && err.code === 'INVALID_ARGUMENT',
+      );
+      await assert.rejects(
+        async () => submissionService.turnInSubmission('crs-1', 'cw-1', ''),
+        (err: unknown) => err instanceof SubmissionError && err.code === 'INVALID_ARGUMENT',
+      );
+    });
+
+    test('throws ALREADY_TURNED_IN when assignment was already turned in', async () => {
+      globalThis.fetch = async () =>
+        ({
+          ok: false,
+          status: 400,
+          statusText: 'Bad Request',
+          json: async () => ({
+            error: { message: 'The submission is already turned in.' },
+          }),
+        }) as unknown as Response;
+
+      await assert.rejects(
+        async () => submissionService.turnInSubmission('crs-1', 'cw-1', 'sub-1'),
+        (err: unknown) => err instanceof SubmissionError && err.code === 'ALREADY_TURNED_IN',
+      );
+    });
+  });
 });

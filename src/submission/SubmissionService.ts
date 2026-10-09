@@ -8,6 +8,7 @@ const CLASSROOM_API_BASE = 'https://classroom.googleapis.com/v1';
 export interface ISubmissionService {
   getStudentSubmission(courseId: string, courseworkId: string): Promise<AssignmentSubmission>;
   reclaimSubmission(courseId: string, courseworkId: string, submissionId: string): Promise<AssignmentSubmission>;
+  turnInSubmission(courseId: string, courseworkId: string, submissionId: string): Promise<AssignmentSubmission>;
   determineSubmissionState(state: string, late?: boolean): SubmissionStateInfo;
   attachDriveFiles(
     courseId: string,
@@ -109,6 +110,40 @@ export class SubmissionService implements ISubmissionService {
     });
 
     this.logger.info(`SubmissionService: Submission ${submissionId} reclaimed successfully.`);
+    return this.mapToAssignmentSubmission(courseId, courseworkId, updatedRaw);
+  }
+
+  /**
+   * Turns in the student submission, locking attached files from student modification.
+   * Google Classroom transitions the state to TURNED_IN and flags late submissions if past due.
+   */
+  public async turnInSubmission(
+    courseId: string,
+    courseworkId: string,
+    submissionId: string,
+  ): Promise<AssignmentSubmission> {
+    if (!courseId || !courseId.trim()) {
+      throw new SubmissionError('Course ID is required.', 'INVALID_ARGUMENT');
+    }
+    if (!courseworkId || !courseworkId.trim()) {
+      throw new SubmissionError('CourseWork ID is required.', 'INVALID_ARGUMENT');
+    }
+    if (!submissionId || !submissionId.trim()) {
+      throw new SubmissionError('Submission ID is required.', 'INVALID_ARGUMENT');
+    }
+
+    this.logger.info(`SubmissionService: Turning in submission ${submissionId}…`);
+
+    const url = `${CLASSROOM_API_BASE}/courses/${encodeURIComponent(courseId)}/courseWork/${encodeURIComponent(courseworkId)}/studentSubmissions/${encodeURIComponent(submissionId)}:turnIn`;
+
+    const updatedRaw = await this.executeRequest<StudentSubmission>(url, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    });
+
+    this.logger.info(
+      `SubmissionService: Submission ${submissionId} turned in successfully (state: ${updatedRaw.state}, late: ${Boolean(updatedRaw.late)}).`,
+    );
     return this.mapToAssignmentSubmission(courseId, courseworkId, updatedRaw);
   }
 
@@ -328,6 +363,12 @@ export class SubmissionService implements ISubmissionService {
       this.logger.error(`SubmissionService: HTTP ${res.status} error: ${details || res.statusText}`);
 
       if (details.toLowerCase().includes('turned in') || details.toLowerCase().includes('turned_in')) {
+        if (details.toLowerCase().includes('already turned in') || details.toLowerCase().includes('already')) {
+          throw new SubmissionError(
+            'This assignment is already turned in.',
+            'ALREADY_TURNED_IN',
+          );
+        }
         throw new SubmissionError(
           'Cannot modify attachments on a turned-in assignment. Please reclaim the assignment before submitting new files.',
           'CANNOT_MODIFY_TURNED_IN',

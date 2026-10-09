@@ -105,6 +105,9 @@ export async function viewStatusCommand(state: ExtensionState): Promise<void> {
     if (submission.canReclaim) {
       buttons.push('Reclaim Submission');
     }
+    if (submission.canSubmit) {
+      buttons.push('Turn In');
+    }
     if (submission.alternateLink) {
       buttons.push('Open in Browser');
     }
@@ -142,6 +145,40 @@ export async function viewStatusCommand(state: ExtensionState): Promise<void> {
         await vscode.window.showInformationMessage(
           '✓ Submission reclaimed. You can now submit new files.',
         );
+      }
+    } else if (choice === 'Turn In') {
+      const confirmTurnIn = await vscode.window.showWarningMessage(
+        'Are you sure you want to turn in this assignment? Once turned in, attachments cannot be modified without reclaiming.',
+        { modal: true },
+        'Yes, Turn In',
+        'Cancel',
+      );
+
+      if (confirmTurnIn === 'Yes, Turn In') {
+        const result = await vscode.window.withProgress(
+          {
+            location: vscode.ProgressLocation.Notification,
+            title: 'Classroom Submit — Turning In Assignment',
+            cancellable: false,
+          },
+          async () => {
+            return state.submissionService.turnInSubmission(
+              courseId,
+              courseworkId,
+              submission.submissionId,
+            );
+          },
+        );
+
+        if (result.late) {
+          await vscode.window.showWarningMessage(
+            '⚠️ Assignment turned in successfully (submitted after the due date).',
+          );
+        } else {
+          await vscode.window.showInformationMessage(
+            '✓ Assignment turned in successfully to Google Classroom.',
+          );
+        }
       }
     } else if (choice === 'Open in Browser' && submission.alternateLink) {
       void vscode.env.openExternal(vscode.Uri.parse(submission.alternateLink));

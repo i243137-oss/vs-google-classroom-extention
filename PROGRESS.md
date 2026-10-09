@@ -21,7 +21,7 @@
 | 7 | Submission Model | ✅ Complete |
 | 8 | Google Drive File Upload | ✅ Complete |
 | 9 | Attach Files to Classroom Submission | ✅ Complete |
-| 10 | Turn In / Submit | ⏳ Not Started |
+| 10 | Turn In / Submit | ✅ Complete |
 | 11 | Complete Submission Command | ⏳ Not Started |
 | 12 | Validation & Pre-submission Checks | ⏳ Not Started |
 | 13 | Settings | ⏳ Not Started |
@@ -340,16 +340,38 @@ WorkspaceService → FileScanner → FileFilter
 
 ---
 
+## ✅ Phase 10 — Turn In / Submit
+
+**Status:** Complete  
+**Completed:** 2026-10-09
+
+### Summary of Implementation:
+- **`SubmissionService.turnInSubmission` (`src/submission/SubmissionService.ts`):**
+  - Implemented the Google Classroom API `studentSubmissions.turnIn` endpoint (`courses/{courseId}/courseWork/{courseWorkId}/studentSubmissions/{id}:turnIn`).
+  - Handles the state transition to `TURNED_IN`, locking attached assignment files from student modification.
+  - Automatically captures the `late: boolean` flag computed by Google Classroom API based on coursework due dates and times.
+  - Granular error handling: Explicitly catches and reports `ALREADY_TURNED_IN` if an attempt is made to turn in an assignment that is already submitted.
+- **Accidental Submission Guard & UI Confirmation (`src/commands/viewStatus.ts`):**
+  - Integrated "Turn In" action button when viewing active submissions in eligible state (`canSubmit = true`).
+  - Presents modal warning confirmation dialog to ensure students do not accidentally turn in work prematurely.
+  - Uses `vscode.window.withProgress` during the turn-in network call.
+  - Contextual feedback: Warns the student if the submission was accepted but marked late (`⚠️ Assignment turned in successfully (submitted after the due date)`).
+- **Testing:**
+  - Added 4 unit tests in `test/suite/submission.test.ts` verifying `turnInSubmission`, state mapping to `TURNED_IN`, late flag propagation, missing argument validation, and `ALREADY_TURNED_IN` error catching.
+  - Test suite now has **113 passing tests** across 8 test suites with 0 failures.
+
+---
+
 ## ⏭️ Next Step
 
-**Start Phase 10 — Turn In / Submit**
+**Start Phase 11 — Complete Submission Command**
 
 When resuming:
-1. Review Phase 10 specifications:
-   - Implement `turnIn` method in `SubmissionService` (calling Google Classroom `studentSubmissions.turnIn` endpoint).
-   - Verify assignment state transitions to `TURNED_IN`.
-   - Handle late submission flag (`late: boolean`).
-   - Confirmation prompts to avoid accidental student turn-in.
+1. Review Phase 11 specifications:
+   - Implement end-to-end `classroomSubmit.submitAssignment` orchestration.
+   - Flow: Ensure Authenticated ➔ Select Course ➔ Select Assignment ➔ Analyze & Select Workspace Files ➔ Confirm Submission Details ➔ Upload Files to Drive ➔ Attach Drive Files to Classroom Submission ➔ Turn In (optional/configurable).
+   - Display overall progress across all stages with cancellable progress reporter.
+   - Handle partial failures cleanly (e.g. files uploaded to Drive but attachment fails).
 2. Acceptance criteria:
    - TypeScript compiles cleanly (`npm run typecheck`).
    - Linter passes (`npm run lint`).
