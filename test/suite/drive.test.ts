@@ -212,6 +212,92 @@ suite('Phase 8 — Google Drive File Upload', () => {
       assert.strictEqual(uploaded.name, 'sample.py');
     });
 
+    test('constructs RFC 2046 compliant multipart payload with trailing CRLF', async () => {
+      let capturedBody: Uint8Array | undefined;
+      let capturedContentType = '';
+
+      globalThis.fetch = async (_url: string | URL | Request, init?: RequestInit) => {
+        capturedContentType = (init?.headers as Record<string, string>)?.['Content-Type'] || '';
+        if (init?.body instanceof Uint8Array) {
+          capturedBody = init.body;
+        }
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            id: 'file-multipart-rfc',
+            name: 'rfc.txt',
+            mimeType: 'text/plain',
+          }),
+        } as unknown as Response;
+      };
+
+      await driveService.uploadFile(Buffer.from('hello rfc'), 'rfc.txt');
+
+      assert.ok(capturedBody, 'Body should be a Uint8Array');
+      const boundaryMatch = capturedContentType.match(/boundary=([^\s;]+)/);
+      assert.ok(boundaryMatch, 'Content-Type should specify boundary');
+      const boundary = boundaryMatch[1];
+      const bodyText = Buffer.from(capturedBody).toString('utf-8');
+      assert.ok(
+        bodyText.endsWith(`\r\n--${boundary}--\r\n`),
+        'Multipart payload must end with closing boundary followed by CRLF per RFC 2046',
+      );
+    });
+
+    test('falls back to resumable upload when multipart upload encounters network failure', async () => {
+      let attemptCount = 0;
+      let resumableInitCalled = false;
+      let chunkUploaded = false;
+
+      globalThis.fetch = async (url: string | URL | Request, init?: RequestInit) => {
+        attemptCount++;
+        const urlStr = String(url);
+
+        // First attempt: multipart upload throws network error (e.g. socket reset)
+        if (urlStr.includes('uploadType=multipart')) {
+          const fetchErr = new TypeError('fetch failed');
+          Object.assign(fetchErr, { cause: new Error('ECONNRESET: Connection reset by peer') });
+          throw fetchErr;
+        }
+
+        // Fallback: resumable upload session init
+        if (urlStr.includes('uploadType=resumable') && init?.method === 'POST') {
+          resumableInitCalled = true;
+          return {
+            ok: true,
+            status: 200,
+            headers: new Headers({
+              location: 'https://www.googleapis.com/upload/drive/v3/files?upload_id=fallback-session-999',
+            }),
+          } as unknown as Response;
+        }
+
+        // Fallback: resumable chunk upload
+        if (urlStr.includes('fallback-session-999') && init?.method === 'PUT') {
+          chunkUploaded = true;
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              id: 'file-recovered-via-resumable',
+              name: 'small.txt',
+              mimeType: 'text/plain',
+            }),
+          } as unknown as Response;
+        }
+
+        throw new Error(`Unexpected request: ${urlStr}`);
+      };
+
+      const result = await driveService.uploadFile(Buffer.from('small content'), 'small.txt');
+
+      assert.ok(attemptCount >= 2, 'Should have attempted multipart first then resumable');
+      assert.ok(resumableInitCalled, 'Resumable session should have been initiated as fallback');
+      assert.ok(chunkUploaded, 'Resumable chunk should have been uploaded');
+      assert.strictEqual(result.id, 'file-recovered-via-resumable');
+    });
+
     test('throws FILE_NOT_FOUND when local file does not exist', async () => {
       await assert.rejects(
         async () => driveService.uploadFile('C:/non-existent-path/file.txt', 'file.txt'),
@@ -367,6 +453,24 @@ suite('Phase 8 — Google Drive File Upload', () => {
           assert.ok(err instanceof DriveApiError);
           assert.strictEqual(err.code, 'NETWORK_ERROR');
           assert.ok(err.message.includes('DNS failure'));
+          return true;
+        },
+      );
+    });
+
+    test('extracts and formats error cause in DriveApiError', async () => {
+      globalThis.fetch = async () => {
+        const fetchErr = new TypeError('fetch failed');
+        Object.assign(fetchErr, { cause: new Error('ECONNREFUSED: connect ECONNREFUSED 127.0.0.1:443') });
+        throw fetchErr;
+      };
+
+      await assert.rejects(
+        async () => driveService.uploadFile(Buffer.from('test'), 'test.txt'),
+        (err: unknown) => {
+          assert.ok(err instanceof DriveApiError);
+          assert.strictEqual(err.code, 'NETWORK_ERROR');
+          assert.ok(err.message.includes('ECONNREFUSED'), 'Error message should include cause details');
           return true;
         },
       );

@@ -61,12 +61,34 @@ export class Logger {
     if (!error) {
       return undefined;
     }
-    const raw =
-      error instanceof Error
-        ? error.message
-        : typeof error === 'string'
-          ? error
-          : JSON.stringify(error);
+    let raw = '';
+    if (error instanceof Error) {
+      raw = error.message;
+      const cause = (error as { cause?: unknown }).cause;
+      if (cause) {
+        let causeStr = '';
+        if (cause instanceof Error) {
+          causeStr = `${cause.name}: ${cause.message}`;
+        } else if (typeof cause === 'string') {
+          causeStr = cause;
+        } else {
+          try {
+            causeStr = JSON.stringify(cause);
+          } catch {
+            causeStr = '[Complex Object]';
+          }
+        }
+        raw += ` (cause: ${causeStr})`;
+      }
+    } else if (typeof error === 'string') {
+      raw = error;
+    } else {
+      try {
+        raw = JSON.stringify(error);
+      } catch {
+        raw = '[Unserializable Error]';
+      }
+    }
     // Strip anything that looks like a Bearer token or long base64 string
     return raw
       .replace(/Bearer [A-Za-z0-9\-._~+/]+=*/g, 'Bearer [REDACTED]')
